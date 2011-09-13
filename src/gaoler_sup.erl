@@ -4,7 +4,10 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([
+	 start_link/0,
+	 add_acceptor/0
+	]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -25,6 +28,12 @@ start_link() ->
 
 init([]) ->
     Gaoler = ?CHILD(gaoler, worker),
-    Acceptor = ?CHILD(acceptor, worker),
-    {ok, { {one_for_one, 5, 10}, [Gaoler, Acceptor]} }.
+    {ok, { {one_for_one, 5, 10}, [Gaoler]} }.
 
+add_acceptor() ->
+    % Child processes added using start_child/2 behave in the same 
+    % manner as the other child processes, with the following important
+    % exception: If a supervisor dies and is re-created, then all 
+    % child processes which were dynamically added to the supervisor
+    % will be lost.
+    supervisor:start_child(?MODULE, ?CHILD(acceptor, worker)).

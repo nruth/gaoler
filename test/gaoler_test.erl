@@ -5,7 +5,8 @@
 
 application_start_test() ->
     ok = application:start(gaoler),
-    ?assertNot(undefined == whereis(gaoler_sup)).
+    ?assertNot(undefined == whereis(gaoler_sup)),
+    gaoler:join().
 
 get_lock_test() ->
     LockID = ?HANDLER,
@@ -22,9 +23,6 @@ steal_lock_test() ->
     ?assert(ok == gaoler_frontend:steal_lock(?HANDLER, self())).
 
 %% experiments - not sure about these
-register_new_node_test() ->
-    Node = node,
-    ?assert({ok, Node} == gaoler:register_new_node(Node)).
-
 get_nodes_test() ->
-    ?assert([node] == gaoler:get_nodes()).
+    Nodes = gaoler:get_nodes(),
+    ?assert(length(Nodes) == 1).
