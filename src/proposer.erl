@@ -1,23 +1,86 @@
-%% convert this to a gen_fsm
-
 -module(proposer).
+-behaviour(gen_fsm).
 
-%% Gaoler api
+%% Events
 -export([
-	 start_new_proposal/3
+	 propose/3,
+	 accept_request/2
 	]).
 
-%% State machine api
+%% States
 -export([
-	 propose/2,
-	 accept/2
+	 idle/2,
+	 proposing/2,
+	 accepting/2
 	]).
 
-start_new_proposal(LockID, _Requester, RespondTo) ->
-    RespondTo ! {got_lock, LockID}.
+%% gen_fsm callbacks
+-export([
+	 start_link/1,
+	 init/1, 
+	 handle_event/3,
+	 handle_sync_event/4, 
+	 handle_info/3, 
+	 terminate/3, 
+	 code_change/4
+	]).
 
-propose(_LockID, _ResourcePid) ->
+-define(SERVER, ?MODULE).
+
+-record(state, 
+	{
+	  lock,
+	  requester,
+	  respond_to
+	}).
+
+%% API
+start_link(RespondTo) ->
+    gen_fsm:start_link(?MODULE, [RespondTo], []).
+
+propose(Proposer, LockID, Requester) ->
+    gen_fsm:send_event(Proposer, {propose, {LockID, Requester}}).
+
+accept_request(_LockID, _ResourcePid) ->
+    % send accept request to all acceptors
     ok.
 
-accept(_LockID, _ResourcePid) ->
+
+%% States
+idle({propose, {LockID, Requester}}, State) ->
+    NewState = State#state{lock=LockID,
+			   requester=Requester},
+
+    % respond immediately and leave proc in proposing state
+    State#state.respond_to ! {got_lock, LockID},
+    {next_state, proposing, NewState};
+idle(_Event, State) ->
+    {next_state, idle, State}.
+
+
+proposing(_Event, State) ->
+    io:format("hej hej hej ~p ~n", [State#state.lock]),
+    {next_state, accepting, State}.
+
+accepting(_Event, State) ->
+    {next_state, accepting, State}.
+
+
+init([RespondTo]) ->
+    {ok, idle, #state{respond_to=RespondTo}}.
+
+handle_event(_Event, StateName, State) ->
+    {next_state, StateName, State}.
+
+handle_sync_event(_Event, _From, StateName, State) ->
+    Reply = ok,
+    {reply, Reply, StateName, State}.
+
+handle_info(_Info, StateName, State) ->
+    {next_state, StateName, State}.
+
+terminate(_Reason, _StateName, _State) ->
     ok.
+
+code_change(_OldVsn, StateName, State, _Extra) ->
+    {ok, StateName, State}.

@@ -19,14 +19,12 @@
 get_lock(LockID, Requester) ->
     % optimization: don't check lock which is already locked
 
-    % spawn a new proposer and let him do the job
-    % this should probably be linked and placed in supervisor tree somehow
+    % start a new proposer and let it work (slavery ftw)
+    % this proposer probably be monitored a bit... supervisor tree?
     FrontEndPid = self(),
-    Pid = spawn(fun() -> 
-			proposer:start_new_proposal(LockID,
-						    Requester,
-						    FrontEndPid) 
-		end),
+    {ok, Pid} = proposer:start_link(FrontEndPid),
+    proposer:propose(Pid, LockID, Requester),
+
     io:format("Started new proposer ~p ~n", [Pid]),
 
     % wait for the reply

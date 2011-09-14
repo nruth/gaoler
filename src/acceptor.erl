@@ -2,10 +2,14 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/0]).
+-export([
+	 start_link/0,
+	 promise/0,
+	 accept/0
+	]).
 
 %% gen_fsm callbacks
--export([init/1, state_name/2, state_name/3, handle_event/3,
+-export([init/1, idle/2, idle/3, handle_event/3,
 	 handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
 -define(SERVER, ?MODULE).
@@ -19,19 +23,30 @@
 start_link() ->
     gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+promise() ->
+    % if promise, move to proposing state
+    % else nack, move to idle
+    ok.
+
+accept() ->
+    % if accept, send value to all learners, move to idle
+    % else nack, move to idle
+    ok.
+
+
 %%%===================================================================
 %%% gen_fsm callbacks
 %%%===================================================================
 
 init([]) ->
-    {ok, state_name, #state{}}.
+    {ok, idle, #state{}}.
 
-state_name(_Event, State) ->
-    {next_state, state_name, State}.
+idle(_Event, State) ->
+    {next_state, idle, State}.
 
-state_name(_Event, _From, State) ->
+idle(_Event, _From, State) ->
     Reply = ok,
-    {reply, Reply, state_name, State}.
+    {reply, Reply, idle, State}.
 
 handle_event(_Event, StateName, State) ->
     {next_state, StateName, State}.

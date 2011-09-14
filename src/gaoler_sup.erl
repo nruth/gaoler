@@ -22,14 +22,6 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-%% ===================================================================
-%% Supervisor callbacks
-%% ===================================================================
-
-init([]) ->
-    Gaoler = ?CHILD(gaoler, worker),
-    {ok, { {one_for_one, 5, 10}, [Gaoler]} }.
-
 add_acceptor() ->
     % Child processes added using start_child/2 behave in the same 
     % manner as the other child processes, with the following important
@@ -37,3 +29,12 @@ add_acceptor() ->
     % child processes which were dynamically added to the supervisor
     % will be lost.
     supervisor:start_child(?MODULE, ?CHILD(acceptor, worker)).
+
+
+%% ===================================================================
+%% Supervisor callbacks
+%% ===================================================================
+
+init([]) ->
+    Gaoler = ?CHILD(gaoler, worker),
+    {ok, { {one_for_one, 5, 10}, [Gaoler]} }.
