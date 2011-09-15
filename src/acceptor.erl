@@ -4,13 +4,25 @@
 %% API
 -export([
 	 start_link/0,
-	 promise/0,
+	 promise/2,
 	 accept/0
 	]).
 
+%% States
+-export([
+	 idle/2,
+	 promised/2
+	]).
+
 %% gen_fsm callbacks
--export([init/1, idle/2, idle/3, handle_event/3,
-	 handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
+-export([
+	 init/1, 
+	 handle_event/3,
+	 handle_sync_event/4, 
+	 handle_info/3, 
+	 terminate/3, 
+	 code_change/4
+	]).
 
 -define(SERVER, ?MODULE).
 
@@ -21,12 +33,12 @@
 %%%===================================================================
 
 start_link() ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_fsm:start_link(?MODULE, [], []).
 
-promise() ->
-    % if promise, move to proposing state
-    % else nack, move to idle
-    ok.
+promise(Proposer, Lock) ->
+    % impl fsm_abcast()?
+    [gen_fsm:send_event(Acceptor, {promise, Proposer, Lock}) ||
+	Acceptor <- gaoler:get_nodes()].
 
 accept() ->
     % if accept, send value to all learners, move to idle
@@ -41,12 +53,14 @@ accept() ->
 init([]) ->
     {ok, idle, #state{}}.
 
-idle(_Event, State) ->
-    {next_state, idle, State}.
+idle({promise, Proposer, Lock}, State) ->
+    % if promise, move to proposing state
+    % else nack, move to idle
+    proposer:accept_request(Proposer, Lock),
+    {next_state, promised, State}.
 
-idle(_Event, _From, State) ->
-    Reply = ok,
-    {reply, Reply, idle, State}.
+promised(_Event, State) ->
+    {next_state, promised, State}.
 
 handle_event(_Event, StateName, State) ->
     {next_state, StateName, State}.

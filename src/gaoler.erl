@@ -22,6 +22,8 @@ start_link() ->
 
 join() ->
     {ok, AcceptorPid} = gaoler_sup:add_acceptor(),
+
+    % assumes nodes are connected
     gen_server:abcast(?SERVER, {join, AcceptorPid}).
 
 stop() ->

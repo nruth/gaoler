@@ -41,29 +41,35 @@ start_link(RespondTo) ->
 propose(Proposer, LockID, Requester) ->
     gen_fsm:send_event(Proposer, {propose, {LockID, Requester}}).
 
-accept_request(_LockID, _ResourcePid) ->
-    % send accept request to all acceptors
-    ok.
+accept_request(Proposer, LockID) ->
+    gen_fsm:send_event(Proposer, {accept_request, LockID}).
 
 
 %% States
 idle({propose, {LockID, Requester}}, State) ->
     NewState = State#state{lock=LockID,
 			   requester=Requester},
-
-    % respond immediately and leave proc in proposing state
-    State#state.respond_to ! {got_lock, LockID},
+    acceptor:promise(self(), LockID),
     {next_state, proposing, NewState};
 idle(_Event, State) ->
     {next_state, idle, State}.
 
 
-proposing(_Event, State) ->
+proposing({accept_request, LockID}, #state{lock=LockID} = State) ->
     io:format("hej hej hej ~p ~n", [State#state.lock]),
-    {next_state, accepting, State}.
+
+    % respond immediately and leave proc in accepting state
+    State#state.respond_to ! {got_lock, LockID},
+    {next_state, accepting, State};
+proposing(_Event, State) -> % ignore invalid requests
+    {next_state, proposing, State}.
+
 
 accepting(_Event, State) ->
     {next_state, accepting, State}.
+
+
+%% introduce a locked state?
 
 
 init([RespondTo]) ->
