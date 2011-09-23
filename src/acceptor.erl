@@ -56,7 +56,7 @@ init([]) ->
 idle({promise, Proposer, Lock}, State) ->
     % if promise, move to proposing state
     % else nack, move to idle
-    proposer:accept_request(Proposer, Lock),
+    proposer:accept_request(Proposer, Lock, self()), % unique id?
     {next_state, promised, State}.
 
 promised(_Event, State) ->

@@ -9,18 +9,26 @@ application_start_test() ->
     gaoler:join(), % acceptor 1
 
     % add 4 more acceptors
-    supervisor:start_child(gaoler_sup, 
-			   {acceptor2, {acceptor, start_link, []},
-			    permanent, 5000, worker, [acceptor2]}),
-    supervisor:start_child(gaoler_sup, 
-			   {acceptor3, {acceptor, start_link, []},
-			    permanent, 5000, worker, [acceptor3]}),
-    supervisor:start_child(gaoler_sup, 
-			   {acceptor4, {acceptor, start_link, []},
-			    permanent, 5000, worker, [acceptor4]}),
-    supervisor:start_child(gaoler_sup, 
-			   {acceptor5, {acceptor, start_link, []},
-			    permanent, 5000, worker, [acceptor5]}).
+    {ok, A2} = 
+	supervisor:start_child(gaoler_sup, 
+			       {acceptor2, {acceptor, start_link, []},
+				permanent, 5000, worker, [acceptor2]}),
+    gaoler:join(A2),
+    {ok, A3} = 
+	supervisor:start_child(gaoler_sup, 
+			       {acceptor3, {acceptor, start_link, []},
+				permanent, 5000, worker, [acceptor3]}),
+    gaoler:join(A3),
+    {ok, A4} = 
+	supervisor:start_child(gaoler_sup, 
+			       {acceptor4, {acceptor, start_link, []},
+				permanent, 5000, worker, [acceptor4]}),
+    gaoler:join(A4),
+    {ok, A5} =
+	supervisor:start_child(gaoler_sup, 
+			       {acceptor5, {acceptor, start_link, []},
+				permanent, 5000, worker, [acceptor5]}),
+    gaoler:join(A5).
 
 
 get_lock_test() ->
@@ -40,5 +48,5 @@ steal_lock_test() ->
 %% experiments - not sure about these
 get_nodes_test() ->
     Nodes = gaoler:get_nodes(),
-    ?assert(length(Nodes) == 1).
+    ?assert(length(Nodes) == 5).
 

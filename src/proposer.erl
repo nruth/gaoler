@@ -4,7 +4,7 @@
 %% Events
 -export([
 	 propose/3,
-	 accept_request/2
+	 accept_request/3
 	]).
 
 %% States
@@ -31,7 +31,8 @@
 	{
 	  lock,
 	  requester,
-	  respond_to
+	  respond_to,
+	  promises_received=[]
 	}).
 
 %% API
@@ -41,8 +42,8 @@ start_link(RespondTo) ->
 propose(Proposer, LockID, Requester) ->
     gen_fsm:send_event(Proposer, {propose, {LockID, Requester}}).
 
-accept_request(Proposer, LockID) ->
-    gen_fsm:send_event(Proposer, {accept_request, LockID}).
+accept_request(Proposer, LockID, Acceptor) ->
+    gen_fsm:send_event(Proposer, {accept_request, LockID, Acceptor}).
 
 
 %% States
@@ -55,12 +56,17 @@ idle(_Event, State) ->
     {next_state, idle, State}.
 
 
-proposing({accept_request, LockID}, #state{lock=LockID} = State) ->
-    io:format("hej hej hej ~p ~n", [State#state.lock]),
-
-    % respond immediately and leave proc in accepting state
-    State#state.respond_to ! {got_lock, LockID},
-    {next_state, accepting, State};
+proposing({accept_request, LockID, Acceptor}, 
+	  #state{lock=LockID} = State) ->
+    Promises = [Acceptor|State#state.promises_received],
+    NewState = State#state{promises_received=Promises},
+    case is_majority(NewState#state.promises_received) of
+	true ->
+	    NewState#state.respond_to ! {got_lock, LockID},
+	    {next_state, accepting, NewState};
+	false ->
+	    {next_state, proposing, NewState}
+    end;
 proposing(_Event, State) -> % ignore invalid requests
     {next_state, proposing, State}.
 
@@ -90,3 +96,15 @@ terminate(_Reason, _StateName, _State) ->
 
 code_change(_OldVsn, StateName, State, _Extra) ->
     {ok, StateName, State}.
+
+
+%% Helpers
+is_majority(Replies) ->
+    RepliesCount = length(Replies),
+    AcceptorsCount = length(gaoler:get_nodes()),
+    if 
+	RepliesCount > AcceptorsCount div 2 ->
+	    true;
+	true ->
+	    false
+    end.

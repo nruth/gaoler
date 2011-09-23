@@ -6,6 +6,7 @@
 	 start_link/0,
 	 get_nodes/0,
 	 join/0,
+	 join/1,
 	 stop/0
 	]).
 
@@ -22,8 +23,10 @@ start_link() ->
 
 join() ->
     {ok, AcceptorPid} = gaoler_sup:add_acceptor(),
-
     % assumes nodes are connected
+    gen_server:abcast(?SERVER, {join, AcceptorPid}).
+join(AcceptorPid) ->
+    % TODO: this is a bit of a hack to run on only one node
     gen_server:abcast(?SERVER, {join, AcceptorPid}).
 
 stop() ->
