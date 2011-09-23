@@ -1,8 +1,6 @@
 -module(gaoler_test).
 -include_lib("eunit/include/eunit.hrl").
 
--define(HANDLER, some_handler).
-
 application_start_test() ->
     ok = application:start(gaoler),
     ?assertNot(undefined == whereis(gaoler_sup)),
@@ -32,18 +30,21 @@ application_start_test() ->
 
 
 get_lock_test() ->
-    LockID = ?HANDLER,
     Requester = self(),
 
-    ?assertEqual({ok, LockID},
-		gaoler_frontend:get_lock(LockID,
-					 Requester)).
+    ?assertEqual({ok, first_lock},
+		gaoler_frontend:get_lock(first_lock, Requester)),
+    ?assertEqual({ok, second_lock},
+		 gaoler_frontend:get_lock(second_lock, Requester)),
+    ?assertEqual({ok, third_lock},
+		 gaoler_frontend:get_lock(third_lock, Requester)).
+    
 
 release_lock_test() ->
-    ?assert(ok == gaoler_frontend:release_lock(?HANDLER)).
+    ?assert(ok == gaoler_frontend:release_lock(handler)).
 
 steal_lock_test() ->
-    ?assert(ok == gaoler_frontend:steal_lock(?HANDLER, self())).
+    ?assert(ok == gaoler_frontend:steal_lock(handler, self())).
 
 %% experiments - not sure about these
 get_nodes_test() ->

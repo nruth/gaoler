@@ -64,7 +64,7 @@ idle({promise, Proposer, Lock}, State) ->
 promised({accept, Proposer, Lock}, 
 	 #state{lock=Lock}=State) ->
     proposer:accept(Proposer, Lock, self()),
-    {next_state, idle, State};
+    {next_state, idle, #state{}};
 promised(_Event, State) ->
     {next_state, promised, State}.
 

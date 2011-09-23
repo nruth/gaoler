@@ -17,8 +17,6 @@
 
 %% User API
 get_lock(LockID, Requester) ->
-    % optimization: don't check lock which is already locked
-
     % start a new proposer and let it work (slavery ftw)
     % this proposer probably be monitored a bit... supervisor tree?
     FrontEndPid = self(),
