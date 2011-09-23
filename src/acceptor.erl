@@ -5,7 +5,7 @@
 -export([
 	 start_link/0,
 	 promise/2,
-	 accept/0
+	 accept/2
 	]).
 
 %% States
@@ -26,7 +26,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state, {lock}).
 
 %%%===================================================================
 %%% API
@@ -40,10 +40,11 @@ promise(Proposer, Lock) ->
     [gen_fsm:send_event(Acceptor, {promise, Proposer, Lock}) ||
 	Acceptor <- gaoler:get_nodes()].
 
-accept() ->
+accept(Proposer, Lock) ->
     % if accept, send value to all learners, move to idle
     % else nack, move to idle
-    ok.
+    [gen_fsm:send_event(Acceptor, {accept, Proposer, Lock}) ||
+	Acceptor <- gaoler:get_nodes()].
 
 
 %%%===================================================================
@@ -56,11 +57,17 @@ init([]) ->
 idle({promise, Proposer, Lock}, State) ->
     % if promise, move to proposing state
     % else nack, move to idle
-    proposer:accept_request(Proposer, Lock, self()), % unique id?
-    {next_state, promised, State}.
+    NewState = State#state{lock=Lock},
+    proposer:accept_promise(Proposer, Lock, self()), % unique id?
+    {next_state, promised, NewState}.
 
+promised({accept, Proposer, Lock}, 
+	 #state{lock=Lock}=State) ->
+    proposer:accept(Proposer, Lock, self()),
+    {next_state, idle, State};
 promised(_Event, State) ->
     {next_state, promised, State}.
+
 
 handle_event(_Event, StateName, State) ->
     {next_state, StateName, State}.

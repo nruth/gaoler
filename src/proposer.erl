@@ -4,14 +4,16 @@
 %% Events
 -export([
 	 propose/3,
-	 accept_request/3
+	 accept_promise/3,
+	 accept/3
 	]).
 
 %% States
 -export([
 	 idle/2,
 	 proposing/2,
-	 accepting/2
+	 accepting/2,
+	 locked/2
 	]).
 
 %% gen_fsm callbacks
@@ -32,7 +34,8 @@
 	  lock,
 	  requester,
 	  respond_to,
-	  promises_received=[]
+	  promises_received=[],
+	  accepts_received=[]
 	}).
 
 %% API
@@ -42,9 +45,11 @@ start_link(RespondTo) ->
 propose(Proposer, LockID, Requester) ->
     gen_fsm:send_event(Proposer, {propose, {LockID, Requester}}).
 
-accept_request(Proposer, LockID, Acceptor) ->
-    gen_fsm:send_event(Proposer, {accept_request, LockID, Acceptor}).
+accept_promise(Proposer, LockID, Acceptor) ->
+    gen_fsm:send_event(Proposer, {accept_promise, LockID, Acceptor}).
 
+accept(Proposer, LockID, Acceptor) ->
+    gen_fsm:send_event(Proposer, {accepted, LockID, Acceptor}).
 
 %% States
 idle({propose, {LockID, Requester}}, State) ->
@@ -56,13 +61,13 @@ idle(_Event, State) ->
     {next_state, idle, State}.
 
 
-proposing({accept_request, LockID, Acceptor}, 
+proposing({accept_promise, LockID, Acceptor}, 
 	  #state{lock=LockID} = State) ->
     Promises = [Acceptor|State#state.promises_received],
     NewState = State#state{promises_received=Promises},
     case is_majority(NewState#state.promises_received) of
 	true ->
-	    NewState#state.respond_to ! {got_lock, LockID},
+	    acceptor:accept(self(), LockID),
 	    {next_state, accepting, NewState};
 	false ->
 	    {next_state, proposing, NewState}
@@ -71,11 +76,22 @@ proposing(_Event, State) -> % ignore invalid requests
     {next_state, proposing, State}.
 
 
+accepting({accepted, LockID, Acceptor}, State) ->
+    Accepts = [Acceptor|State#state.accepts_received],
+    NewState = State#state{accepts_received = Accepts},
+    case is_majority(NewState#state.accepts_received) of
+	true ->
+	    NewState#state.respond_to ! {got_lock, LockID},
+	    {next_state, locked, NewState};
+	false ->
+	    {next_state, accepting, NewState}
+    end;
 accepting(_Event, State) ->
     {next_state, accepting, State}.
 
 
-%% introduce a locked state?
+locked(_Event, State) ->
+    {next_state, locked, State}.
 
 
 init([RespondTo]) ->
