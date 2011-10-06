@@ -1,90 +1,77 @@
 -module(acceptor).
--behaviour(gen_fsm).
 
 %% API
 -export([
-	 start_link/0,
-	 promise/2,
-	 accept/2
+	 promise_me/2,
+	 vote/3
 	]).
-
-%% States
 -export([
-	 idle/2,
-	 promised/2
+	 start/0,
+	 stop/0,
+	 loop/1
 	]).
 
-%% gen_fsm callbacks
--export([
-	 init/1, 
-	 handle_event/3,
-	 handle_sync_event/4, 
-	 handle_info/3, 
-	 terminate/3, 
-	 code_change/4
-	]).
 
--define(SERVER, ?MODULE).
+%% state
+-record(state, 
+	{
+	  highest_round=0,
+	  latest_vote=0
+	}).
 
--record(state, {lock}).
+%% API
+promise_me(Proposer, Round) ->
+    ?MODULE ! {promise, Round, Proposer}.
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+vote(Proposer, Round, Value) ->
+    ?MODULE ! {vote, Round, Value, Proposer}.
 
-start_link() ->
-    gen_fsm:start_link(?MODULE, [], []).
+start() ->
+    spawn(fun() -> acceptor:loop(#state{}) end).
 
-promise(Proposer, Lock) ->
-    % impl fsm_abcast()?
-    [gen_fsm:send_event(Acceptor, {promise, Proposer, Lock}) ||
-	Acceptor <- gaoler:get_nodes()].
+stop() ->
+    ?MODULE ! stop.
 
-accept(Proposer, Lock) ->
-    % if accept, send value to all learners, move to idle
-    % else nack, move to idle
-    [gen_fsm:send_event(Acceptor, {accept, Proposer, Lock}) ||
-	Acceptor <- gaoler:get_nodes()].
+loop(State) ->
+    receive 
+	{promise, Round, From} ->
+	    NewState = handle_promise(Round, From, State),
+	    loop(NewState);
+	{vote, Round, Value, From} ->
+	    NewState = handle_vote(Round, Value, From, State),
+	    loop(NewState);
+	stop ->
+	    ok;
+	_Other ->
+	    loop(State)
+    end.
 
+handle_promise(Round, From, State) ->
+    case Round > State#state.highest_round of
+	true ->
+	    NewState = State#state{highest_round = Round},
+	    From ! {promised, Round},
+	    NewState;
+	false ->
+	    From ! {promised, State#state.highest_round},
+	    State
+    end.
 
-%%%===================================================================
-%%% gen_fsm callbacks
-%%%===================================================================
+handle_vote(Round, Value, From, State) ->
+    {Status, NewState} = 
+	case Round >= State#state.highest_round of
+	    true ->
+		{ok, State#state{latest_vote = {Round, Value},
+				 highest_round = Round}};
+	    false ->
+		{no, State}
+	end,
 
-init([]) ->
-    {ok, idle, #state{}}.
+    LastVote = {voted, NewState#state.latest_vote},
+    InRound = {in_round, NewState#state.highest_round},
+    Reply = {Status, LastVote, InRound},
+    
+    From ! Reply, 
 
-idle({promise, Proposer, Lock}, State) ->
-    % if promise, move to proposing state
-    % else nack, move to idle
-    NewState = State#state{lock=Lock},
-    proposer:accept_promise(Proposer, Lock, self()), % unique id?
-    {next_state, promised, NewState}.
+    NewState.
 
-promised({accept, Proposer, Lock}, 
-	 #state{lock=Lock}=State) ->
-    proposer:accept(Proposer, Lock, self()),
-    {next_state, idle, #state{}};
-promised(_Event, State) ->
-    {next_state, promised, State}.
-
-
-handle_event(_Event, StateName, State) ->
-    {next_state, StateName, State}.
-
-handle_sync_event(_Event, _From, StateName, State) ->
-    Reply = ok,
-    {reply, Reply, StateName, State}.
-
-handle_info(_Info, StateName, State) ->
-    {next_state, StateName, State}.
-
-terminate(_Reason, _StateName, _State) ->
-    ok.
-
-code_change(_OldVsn, StateName, State, _Extra) ->
-    {ok, StateName, State}.
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
