@@ -1,7 +1,8 @@
 -module(proposer).
 -export([
-	 prepare/2,
+	 prepare/2
 	]).
+
 -define(MAJORITY, 3).
 
 prepare(Round, Value) ->
@@ -30,11 +31,11 @@ wait_for_promises(Round, NumberOfReplies, PreviousVote) ->
     end.
 	    
 
-ballot() ->
+ballot(_Round, _Proposal) ->
     % send ballot to acceptors
     % wait for quorum
     % return 
-
+    ok.
 
 add_latest_vote({Round, _Value}=Vote, {OldRound,_OldValue}=OldVote) ->
     case Round > OldRound of
