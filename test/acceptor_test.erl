@@ -43,8 +43,6 @@ simple_vote_test() ->
     Acceptor ! stop.
     
 
-    
-
 % get accept request with n and value
 % say ok if I haven't promised anything with a higher n
 % if ignoring the value it should probably tell the proposer
