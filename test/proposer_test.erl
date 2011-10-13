@@ -1,6 +1,7 @@
 -module(proposer_test).
 -include_lib("eunit/include/eunit.hrl").
 
+
 propose_test() ->
     {ok, SequenceNumber, Value} = proposer:start_proposal(SequenceNumber, Value).
 
