@@ -1,78 +1,72 @@
 -module(acceptor).
+-behaviour(gen_server).
+-include_lib("acceptor_state.hrl").
 
 %% API
--export([
-	 promise_me/2,
-	 vote/3
-	]).
--export([
-	 start/0,
-	 stop/0,
-	 loop/1
-	]).
+-export([start_link/0, stop/0, prepare/1, vote/2]).
 
+%% gen_server callbacks
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
-%% state
--record(state, 
-	{
-	  highest_round=0,
-	  latest_vote=0
-	}).
+%%%===================================================================
+%%% API
+%%%===================================================================
 
-%% API
-promise_me(Proposer, Round) ->
-    ?MODULE ! {promise, Round, Proposer}.
+%%--------------------------------------------------------------------
+%% @doc Starts the server.
+%% @spec start_link() -> {ok, Pid::pid()}
+%%--------------------------------------------------------------------
+start_link() ->
+  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-vote(Proposer, Round, Value) ->
-    ?MODULE ! {vote, Round, Value, Proposer}.
-
-start() ->
-    Pid = spawn(fun() -> acceptor:loop(#state{}) end),
-    {ok, Pid}.
-
+%%--------------------------------------------------------------------
+%% @doc Stops the server.
+%% @spec stop() -> ok
+%%--------------------------------------------------------------------
 stop() ->
-    ?MODULE ! stop.
+  gen_server:cast(?MODULE, stop).
 
-loop(State) ->
-    receive 
-	{promise, Round, From} ->
-	    NewState = handle_promise(Round, From, State),
-	    loop(NewState);
-	{vote, Round, Value, From} ->
-	    NewState = handle_vote(Round, Value, From, State),
-	    loop(NewState);
-	stop ->
-	    ok;
-	_Other ->
-	    loop(State)
-    end.
+%%--------------------------------------------------------------------
+%% @doc Request that the acceptor promises not to vote on older rounds
+%% @end
+%% TODO: spec
+%%--------------------------------------------------------------------
+prepare(Round) ->
+  gen_server:cast(?MODULE, {prepare, Round}).
 
-handle_promise(Round, From, State) ->
-    case Round > State#state.highest_round of
-	true ->
-	    NewState = State#state{highest_round = Round},
-	    From ! {promised, Round},
-	    NewState;
-	false ->
-	    From ! {promised, State#state.highest_round},
-	    State
-    end.
+%%--------------------------------------------------------------------
+%% @doc Request that the acceptor votes for the proposal
+%% @end
+%% TODO: spec
+%%--------------------------------------------------------------------
+vote(Round, Value) ->
+  gen_server:cast(?MODULE, {vote, Round, Value}).
 
-handle_vote(Round, Value, From, State) ->
-    {Status, NewState} = 
-	case Round >= State#state.highest_round of
-	    true ->
-		{ok, State#state{latest_vote = {Round, Value},
-				 highest_round = Round}};
-	    false ->
-		{no, State}
-	end,
 
-    LastVote = {voted, NewState#state.latest_vote},
-    InRound = {in_round, NewState#state.highest_round},
-    Reply = {Status, LastVote, InRound},
-    
-    From ! Reply, 
+%%%===================================================================
+%%% gen_server callbacks
+%%%===================================================================
+init([]) -> {ok, #state{}}.
 
-    NewState.
+handle_call({prepare, Round}, _From, State) ->
+  handle_prepare(Round, State);
+handle_call({accept, Round, Value}, _From, State) ->
+  handle_accept(Round, Value, State).
 
+handle_cast(stop, State) -> {stop, normal, State}.
+handle_info(_Info, State) -> {noreply, State}.
+terminate(_Reason, _State) -> ok.
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+handle_prepare(Round, State) -> 
+  NewState = State#state{promised = max(Round, State#state.promised)},
+  {reply, {promised, Round}, NewState}.
+
+handle_accept(Round, Value, State) when Round >= State#state.promised ->
+  {reply, {accept, Round}, State#state{accepted=Value}};
+handle_accept(Round, _, State) -> 
+  {reply, {reject, Round}, State}.
