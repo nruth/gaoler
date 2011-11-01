@@ -27,7 +27,8 @@ vote(Proposer, Round, Value) ->
     ?MODULE ! {vote, Round, Value, Proposer}.
 
 start() ->
-    spawn(fun() -> acceptor:loop(#state{}) end).
+    Pid = spawn(fun() -> acceptor:loop(#state{}) end),
+    {ok, Pid}.
 
 stop() ->
     ?MODULE ! stop.

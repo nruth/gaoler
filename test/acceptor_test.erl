@@ -21,7 +21,7 @@ cleanup() ->
 %%     cleanup().
 
 simple_promise_test() ->
-    Acceptor = acceptor:start(),
+    {ok, Acceptor} = acceptor:start(),
     ProposerMock = nspy:mock(),
     Acceptor ! {promise, 10, ProposerMock},
     timer:sleep(10),
@@ -30,7 +30,7 @@ simple_promise_test() ->
     
 
 simple_vote_test() ->
-    Acceptor = acceptor:start(),
+    {ok, Acceptor} = acceptor:start(),
     ProposerMock = nspy:mock(),
     Acceptor ! {promise, 10, ProposerMock},
     Acceptor ! {vote, 10, value, ProposerMock},
