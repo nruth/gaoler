@@ -14,7 +14,7 @@ first_promise_received_test() ->
     Result = proposer:awaiting_promises({promised, Round}, InitialState),
     ?assertMatch({next_state, awaiting_promises, ?PROMISES(1)}, Result).
 
-success_case_move_to_next_state_test() ->
+on_promise_quorum_state_moves_to_accepting_test() ->
     Round = 1,
     InitialState = ?MOCKCOMMS?PROMISES(2)?ROUND(Round),
     Result = proposer:awaiting_promises({promised, Round}, InitialState),
@@ -22,7 +22,7 @@ success_case_move_to_next_state_test() ->
 
 
 %% sad case: someone else has been promised a higher round
-higher_promise_received_test() ->
+on_higher_promise_received_proposer_aborts_test() ->
     Round = 1,
     InitialState = ?MOCKCOMMS?PROMISES(0)?ROUND(Round),
     Result = proposer:awaiting_promises({promised, 100}, InitialState),
