@@ -1,22 +1,34 @@
 -module(proposer).
 -export([
-	 prepare/2
+	 prepare/3
 	]).
 
 -define(MAJORITY, 3).
 
-prepare(Round, Value) ->
-    % send requests to acceptors
+%% propose(Round, Value) ->
+%%     spawn (
+%%     Proposal = prepare(Round, Value),
+%%     Result = ballot(Round, Proposal),
+%%       from ! result ),
+%%     receive 
+%% 	Result  ->
+%% 	    Result;
+%%     after ?TIMEOUT ->
+%% 	    dead
+%%     end.
 
-    MyProposal = 
-	case wait_for_promises(Round, 0, no_previous_value) of
-	    no_previous_value ->
-		Value;
-	    PreviousValue ->
-		PreviousValue
-	end,
-    ballot(Round, MyProposal).
+prepare(Acceptors, Round, Value) ->
+    Message = {prepare, Round},
+    broadcast(Acceptors, self(), Message),
 
+    case wait_for_promises(Round, 0, no_previous_value) of
+	no_previous_value ->
+	    Value;
+	PreviousValue ->
+	    PreviousValue
+    end,
+
+    {Round, Value}.
 
 wait_for_promises(_Round, ?MAJORITY, Votes) -> 
 % votes = previously accepted values for an acceptor    
@@ -31,11 +43,28 @@ wait_for_promises(Round, NumberOfReplies, PreviousVote) ->
     end.
 	    
 
-ballot(_Round, _Proposal) ->
+ballot(Round, Proposal) ->
     % send ballot to acceptors
+    Ballot = msg,
+    
+    Result = wait_for_ballot(Round, Proposal, 0, no_previous_value),
     % wait for quorum
     % return 
+    Result.
+
+wait_for_ballot(Round, Proposal, ?MAJORITY, Votes) ->
+    Votes;
+wait_for_ballot(Round, Proposal, NumberOfReplies, PreviousVote) ->
     ok.
+
+
+broadcast([], _, _) ->
+    ok;
+broadcast([Target|TargetGroup], From, Message) ->
+    Target ! {Message, From},
+    broadcast(TargetGroup, From, Message).
+
+
 
 add_latest_vote({Round, _Value}=Vote, {OldRound,_OldValue}=OldVote) ->
     case Round > OldRound of

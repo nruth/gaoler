@@ -1,78 +1,66 @@
 -module(acceptor_test).
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("acceptor_state.hrl").
 
-setup() ->
-    acceptor:start_link().
-    
-cleanup() ->
-    acceptor:stop().
+-define(NO_PROMISES, #state{}).
+-define(PROMISED(N), #state{promised=N}).
+-define(PROMISED_AND_ACCEPTED(N, A), #state{promised=N, accepted=A}).
 
-% receive a prepare request for round=n
-% return promise never to vote in anything less than n
-% always accept prepare request as long as new n is higher than stored n
-% reply with previously accepted highest n and value for that n
+%% prepare requests / promises
+promise_sent_when_no_higher_promises_made_test() ->
+  Sender = nil,
+  InitialState = ?NO_PROMISES,
+  Result = acceptor:handle_call({prepare, 5}, Sender, InitialState),
+  ?assertMatch({reply, {promised, 5}, _}, Result).
 
-%% promise_test() ->
-%%     acceptor:start_link(),    
-%%     ?assert({promised, 10} == acceptor:prepare(10)),
-%%     ?assert({promised, 11} == acceptor:prepare(11)),
-%%     ?assertNot({promised, 10} == acceptor:prepare(10)),
-%%     ?assert({promised, 11} == acceptor:prepare(10)),
-%%     cleanup().
+% since the proposer should know someone else has already prevented its round from succeeding
+% and reuse of the same promised message allows simpler acceptor
+highest_promise_sent_when_lower_prepare_requested_test() ->
+  Sender = nil,
+  InitialState = ?PROMISED(6),
+  Result = acceptor:handle_call({prepare, 5}, Sender, InitialState),
+  ?assertMatch({reply, {promised, 6}, _}, Result).
 
-simple_promise_test() ->
-    Acceptor = acceptor:start(),
-    ProposerMock = nspy:mock(),
-    Acceptor ! {promise, 10, ProposerMock},
-    timer:sleep(10),
-    nspy:assert_message_received(ProposerMock, {promised, 10}),
-    Acceptor ! stop.
-    
+promise_state_updated_by_higher_prepare_test() ->
+  Sender = nil,
+  InitialState = ?NO_PROMISES,
+  Result = acceptor:handle_call({prepare, 5}, Sender, InitialState),
+  ?assertMatch({_, _, #state{promised = 5}}, Result).
 
-simple_vote_test() ->
-    Acceptor = acceptor:start(),
-    ProposerMock = nspy:mock(),
-    Acceptor ! {promise, 10, ProposerMock},
-    Acceptor ! {vote, 10, value, ProposerMock},
-    timer:sleep(10),
-    nspy:assert_message_received(ProposerMock, {promised, 10}),
-    nspy:assert_message_received(ProposerMock, {ok, 
-						{voted, {10, value}},
-						{in_round, 10}
-					       }),
-    Acceptor ! stop.
-    
+promise_state_unchanged_by_lower_prepare_test() ->
+  Sender = nil,
+  InitialState = ?PROMISED(6),
+  Result = acceptor:handle_call({prepare, 5}, Sender, InitialState),
+  ?assertMatch({_, _, #state{promised = 6}}, Result).
 
-% get accept request with n and value
-% say ok if I haven't promised anything with a higher n
-% if ignoring the value it should probably tell the proposer
 
-%% accept_request_test() ->
-%%     setup(),
+%% accept requests / votes updates state
+proposal_with_higher_round_than_promised_updates_accepted_test() ->
+  Sender = nil, 
+  InitialState = ?PROMISED_AND_ACCEPTED(4, prev),
+  Proposal = {accept, 5, v},
+  Result = acceptor:handle_call(Proposal, Sender, InitialState),
+  ?assertMatch({_, _, #state{accepted = v}}, Result).
 
-%%     Value = some_value,
-%%     Round = 10,
+proposal_with_lower_round_than_promised_does_not_change_accepted_test() ->
+  Sender = nil, 
+  InitialState = ?PROMISED_AND_ACCEPTED(6, prev),
+  Proposal = {accept, 5, v},
+  Result = acceptor:handle_call(Proposal, Sender, InitialState),
+  ?assertMatch({_, _, #state{accepted = prev}}, Result).
 
-%%     ?assert({promised, Round} == 
-%% 		gen_server:call(acceptor, {promise, Round})),
 
-%%     ?assertEqual({ok,
-%% 		  {voted, {Round, Value}},
-%% 		  {in_round, Round}
-%% 		 }, acceptor:vote(Round, Value)),
+%% test acceptors reply to the proposer (no separate learners)
+proposal_with_higher_round_than_promised_replies_accept_test() ->
+  Sender = nil,
+  InitialState = ?PROMISED(3),
+  Proposal = {accept, 5, v},
+  Result = acceptor:handle_call(Proposal, Sender, InitialState),
+  ?assertMatch({reply, {accept, 5}, _}, Result).
 
-%%     ?assert({promised, Round+1} == acceptor:prepare(Round+1)),
-
-%%     ?assertEqual({no, 
-%% 		  {voted, {Round, Value}},
-%% 		  {in_round, Round+1}
-%% 		 }, acceptor:vote(Round, Value)),
-    
-%%     cleanup().
-
-%% consecutive_votes_test() ->
-%%     acceptor:start_link(),
-
-    
-
-%%     acceptor:stop().
+proposal_with_lower_round_than_promised_replies_reject_test() ->
+  Sender = nil,
+  InitialState = ?PROMISED(6),
+  Proposal = {accept, 5, v},
+  Result = acceptor:handle_call(Proposal, Sender, InitialState),
+  ?assertMatch({reply, {reject, 5}, _}, Result).
