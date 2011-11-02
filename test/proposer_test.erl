@@ -1,45 +1,45 @@
 -module(proposer_test).
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("proposer_state.hrl").
+
+-define(PROMISES(N),#state{promises=N}).
+
+%% happy case: no other proposers and round 1 succeeds
+first_promise_received_test() ->
+    Round = 1,
+    InitialState = ?PROMISES(0)#state{round=Round},
+    Result = proposer:awaiting_promises({promised, Round}, InitialState),
+    ?assertMatch({next_state, awaiting_promises, ?PROMISES(1)}, Result).
+
+success_case_move_to_next_state_test() ->
+    Round = 1,
+    InitialState = ?PROMISES(2)#state{round=Round},
+    Result = proposer:awaiting_promises({promised, Round}, InitialState),
+    ?assertMatch({next_state, awaiting_accepts, ?PROMISES(3)}, Result).
 
 
-propose_test() ->
-    %{ok, SequenceNumber, Value} = proposer:start_proposal(SequenceNumber, Value).
+%% sad case: someone else has been promised a higher round
+higher_promise_received_test() ->
+    Round = 1,
+    InitialState = ?PROMISES(0)#state{round=Round},
+    Result = proposer:awaiting_promises({promised, 100}, InitialState),
+    ?assertMatch({next_state, aborted, _}, Result).
 
-    % should send prepare messages for some round id
 
-    % should monotonically increase the round id and retry when rejected
+%% %% happy case: a prepare message is received by the acceptor
+%% prepare_message_sent_to_acceptor_test() ->
+%%     meck:new(gaoler),
 
-    % should issue ballot (accept requests) if majority of promises received
-    %  - with highest round-id value returned
-    % - proposes new value if no past-value has been accepted
+%%     meck:expect(gaoler, get_acceptors, fun() -> [nspy:mock()] end),
 
-    ok.
+%%     [Acceptor] = gaoler:get_acceptors(),
 
-prepare_sends_prepare_request_to_acceptors_test() ->
-    AcceptorMocks = [nspy:mock() || _ <- lists:seq(1,5)],
-
-    ProposerPid = 
-	spawn(fun() -> proposer:prepare(AcceptorMocks, 0, value) end),
-
-    timer:sleep(10),
-    [nspy:assert_message_received(AcceptorMock, {{prepare, 0}, ProposerPid}) ||
-	AcceptorMock <- AcceptorMocks],
-
-    exit(ProposerPid, kill).
-
-prepare_check_promises_reply_test() ->
-    ProposerPid = 
-	spawn(fun() -> proposer:prepare([], 0, value) end),
+%%     InitialState = ?PROMISES(2)#state{acceptors=[Acceptor],
+%% 				      round=1},
     
-    [ProposerPid ! {promised, 0, value} || _ <- lists:seq(3)],
+%%     proposer:awaiting_promises({promised, 1}, InitialState),
 
-    %% test result value...
+%%     MessagesReceived = nspy:get_messages_from_spy(Acceptor),
+%%     ?assertEqual(1, length(MessagesReceived)).
     
-    exit(ProposerPid, kill).
-
-%prepare_when_no_previous_values_returns_proposed_value_test() ->
-%    ?assertEqual({10, value}, proposer:prepare([], 10, value)).
-
-%% prepare_with_previous_value_using_old_round_test() ->
-%%     proposer:prepare(10, value),
-%%     ?assertEquals({10, value}, proposer:prepare(11, value)).
+    
