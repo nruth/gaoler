@@ -48,8 +48,8 @@ get_messages_from_spy(Spy) ->
 assert_message_received(Spy, Expected) ->
   Messages = get_messages_from_spy(Spy),
   io:format("~n[SPY] expected ~p received ~p~n", [Expected, Messages]),
-  MessageFound = lists:any(fun(Elem) -> Elem =:= Expected end, Messages),
-  ?assert(MessageFound).
+  Found = lists:member(Expected, Messages),
+  ?assert(Found).
 
   assert_message_received_success_test() ->
     Spy = nspy:mock(),
