@@ -3,5 +3,5 @@
 	  round,
 	  value,
 	  promises = 0,
-          acceptors = []
+      acceptors_proxy
 	}).
