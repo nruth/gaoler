@@ -13,8 +13,9 @@ promise_sent_when_no_higher_promises_made_test() ->
   Result = acceptor:handle_call({prepare, 5}, Sender, InitialState),
   ?assertMatch({reply, {promised, 5}, _}, Result).
 
-% since the proposer should know someone else has already prevented its round from succeeding
-% and reuse of the same promised message allows simpler acceptor
+% since the proposer should know someone else has already prevented 
+% its round from succeeding and reuse of the same promised message
+% allows simpler acceptor
 highest_promise_sent_when_lower_prepare_requested_test() ->
   Sender = nil,
   InitialState = ?PROMISED(6),
@@ -63,4 +64,11 @@ proposal_with_lower_round_than_promised_replies_reject_test() ->
   InitialState = ?PROMISED(6),
   Proposal = {accept, 5, v},
   Result = acceptor:handle_call(Proposal, Sender, InitialState),
-  ?assertMatch({reply, {reject, 5}, _}, Result).
+    ?assertMatch({reply, {reject, 5}, _}, Result).
+
+proposal_with_same_round_as_promised_replies_accept_test() ->
+    Sender = nil,
+    InitialState = ?PROMISED(5),
+    Proposal = {accept, 5, v},
+    Result = acceptor:handle_call(Proposal, Sender, InitialState),
+    ?assertMatch({reply, {accept, 5}, _}, Result).

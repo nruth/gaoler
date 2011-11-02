@@ -3,10 +3,22 @@
 -include_lib("acceptor_state.hrl").
 
 %% API
--export([start_link/0, stop/0, prepare/1, vote/2]).
+-export([
+	 start_link/0, 
+	 stop/0, 
+	 prepare/1, 
+	 accept/2
+	]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-export([
+	 init/1, 
+	 handle_call/3, 
+	 handle_cast/2, 
+	 handle_info/2, 
+	 terminate/2, 
+	 code_change/3
+	]).
 
 %%%===================================================================
 %%% API
@@ -32,15 +44,15 @@ stop() ->
 %% TODO: spec
 %%--------------------------------------------------------------------
 prepare(Round) ->
-  gen_server:cast(?MODULE, {prepare, Round}).
+  gen_server:call(?MODULE, {prepare, Round}).
 
 %%--------------------------------------------------------------------
 %% @doc Request that the acceptor votes for the proposal
 %% @end
 %% TODO: spec
 %%--------------------------------------------------------------------
-vote(Round, Value) ->
-  gen_server:cast(?MODULE, {vote, Round, Value}).
+accept(Round, Value) ->
+  gen_server:call(?MODULE, {accept, Round, Value}).
 
 
 %%%===================================================================
