@@ -1,5 +1,6 @@
 -module (nspy).
--export ([new/1, wrapper/1, mock/0, spy/2, assert_message_received/2, assert_message_not_received/2, assert_message_received_n_times/3]).
+-export ([new/1, wrapper/1, mock/0, spy/2, assert_message_received/2, assert_message_not_received/2, assert_message_received_n_times/3, 
+          get_messages_from_spy/1]).
 -define (NODEBUG, true).
 -include_lib("eunit/include/eunit.hrl").
 
