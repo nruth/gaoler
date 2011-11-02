@@ -62,9 +62,10 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-handle_prepare(Round, State) -> 
-  NewState = State#state{promised = max(Round, State#state.promised)},
-  {reply, {promised, Round}, NewState}.
+handle_prepare(Round, State) ->
+  MaxPromised = max(Round, State#state.promised),
+  NewState = State#state{promised = MaxPromised},
+  {reply, {promised, MaxPromised}, NewState}.
 
 handle_accept(Round, Value, State) when Round >= State#state.promised ->
   {reply, {accept, Round}, State#state{accepted=Value}};
