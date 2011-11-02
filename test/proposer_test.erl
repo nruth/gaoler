@@ -7,6 +7,13 @@
 -define(ROUND(N),   #state{round=N}).
 -define(VALUE(V),   #state{value=V}).
 
+on_init_proposer_broadcasts_prepare_test() ->
+    Round = 1,
+    AcceptorsProxy = nspy:mock(),
+    proposer:init([Round, val, AcceptorsProxy]),
+    timer:sleep(10),
+    nspy:assert_message_received(AcceptorsProxy, {prepare, Round}).
+
 %% happy case: no other proposers and round 1 succeeds
 first_promise_received_test() ->
     Round = 1,
@@ -20,6 +27,12 @@ on_promise_quorum_state_moves_to_accepting_test() ->
     Result = proposer:awaiting_promises({promised, Round}, InitialState),
     ?assertMatch({next_state, awaiting_accepts, ?PROMISES(3)}, Result).
 
+on_promise_quorum_proposer_broadcasts_accept_test() ->
+    Round = 1,
+    InitialState = ?MOCKCOMMS?PROMISES(2)?ROUND(Round)?VALUE(foo),
+    proposer:awaiting_promises({promised, Round}, InitialState),
+    timer:sleep(10),
+    nspy:assert_message_received(InitialState#state.acceptors_proxy, {accept, Round, foo}).
 
 %% sad case: someone else has been promised a higher round
 on_higher_promise_received_proposer_aborts_test() ->
