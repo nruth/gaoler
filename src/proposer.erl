@@ -1,7 +1,6 @@
 -module(proposer).
 -behaviour(gen_fsm).
 -include_lib("proposer_state.hrl").
-
 %% API
 -export([start_link/0]).
 
@@ -34,11 +33,11 @@ start_link() ->
 %%% gen_fsm callbacks
 %%%===================================================================
 
-init([Round, Value]) ->
-    State = #state{round=Round,
-		   value=Value},
+init([Round, Value, AcceptorsProxy]) ->
+    State = #state{round=Round, value=Value, acceptors_proxy=AcceptorsProxy},
 
     % broadcast to acceptors 
+    State#state.acceptors_proxy ! {prepare, Round},
     % acceptors:promise(Round),
 
     {ok, awaiting_promises, State}.
@@ -46,7 +45,7 @@ init([Round, Value]) ->
 awaiting_promises({promised, Round}, State) 
   when Round > State#state.round ->
     {next_state, aborted, State};
-awaiting_promises({promised, Round}, #state{round=Round}=State) -> 
+awaiting_promises({promised, Round}, #state{round=Round, value=Value}=State) -> 
     % collect promise
     NewState = State#state{promises = State#state.promises + 1},
 
@@ -54,6 +53,7 @@ awaiting_promises({promised, Round}, #state{round=Round}=State) ->
 	false ->
 	    {next_state, awaiting_promises, NewState};
 	true ->
+	    State#state.acceptors_proxy ! {accept, Round, Value},
 	    {next_state, awaiting_accepts, NewState}
     end;
 awaiting_promises(_Event, State) ->
