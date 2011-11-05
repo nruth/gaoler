@@ -3,18 +3,21 @@
 -include_lib("proposer_state.hrl").
 
 -define(PROMISES(N),#state{promises=N}).
+-define(ACCEPTS(N), #state{accepts=N}).
 -define(ROUND(N),   #state{round=N}).
 -define(VALUE(V),   #state{value=V}).
 
 setup() ->
-    Mods = [acceptors],
+    Mods = [acceptors, gaoler],
     meck:new(Mods),
     meck:expect(acceptors, accept, 2, ok),
+    meck:expect(gaoler, deliver, 1, ok),
     Mods.
 
 teardown(Mods) ->
     meck:unload(Mods).
 
+%% TestCase: initialise proposer
 on_init_proposer_broadcasts_prepare_test() ->
     Round = 1,
     meck:new(acceptors),
@@ -23,7 +26,7 @@ on_init_proposer_broadcasts_prepare_test() ->
     ?assert(meck:called(acceptors, promise, [Round])),
     meck:unload(acceptors).
 
-%% Test awaiting_promises state
+%% TestCase: awaiting_promises state
 awaiting_promises_test_() ->
     {foreach, 
      fun setup/0, 
@@ -61,3 +64,38 @@ on_higher_promise_received_proposer_aborts() ->
     InitialState = ?PROMISES(0)?ROUND(Round),
     Result = proposer:awaiting_promises({promised, 100}, InitialState),
     ?assertMatch({next_state, aborted, _}, Result).
+
+
+%% TestCase: awaiting_accepts state
+awaiting_accepts_test_() ->
+    {foreach, 
+     fun setup/0, 
+     fun teardown/1,
+     [
+      fun first_accept_received/0,
+      fun on_accept_quorum_proposer_delivers_value/0,
+      fun on_accept_quorum_state_moves_to_accepted/0
+     ]
+    }.
+
+first_accept_received() ->
+    Round = 1,
+    InitialState = ?PROMISES(3)?ACCEPTS(0)?ROUND(Round)?VALUE(foo),
+    Result = proposer:awaiting_accepts({accepted, Round}, InitialState),
+    ?assertMatch({next_state, awaiting_accepts, ?ACCEPTS(1)}, Result).
+
+on_accept_quorum_proposer_delivers_value() ->
+    Round = 1,
+    Value = foo,
+    InitialState = ?PROMISES(3)?ACCEPTS(2)?ROUND(Round)?VALUE(Value),
+    proposer:awaiting_accepts({accepted, Round}, InitialState),
+    ?assert(meck:called(gaoler, deliver, [Value])).
+
+on_accept_quorum_state_moves_to_accepted() ->
+    Round = 1,
+    Value = 1,
+    InitialState = ?PROMISES(3)?ACCEPTS(2)?ROUND(Round)?VALUE(Value),
+    Result = {_, _, AcceptedState} = 
+	proposer:awaiting_accepts({accepted, Round}, InitialState),
+    ?assertMatch({next_state, accepted, _}, Result),
+    ?assertEqual(InitialState?ACCEPTS(3), AcceptedState).
