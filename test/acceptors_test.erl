@@ -5,11 +5,13 @@ setup() ->
     Mods = [proposer, gaoler],
     meck:new(Mods),
     meck:expect(proposer, promised, 1, ok),
-    Mods.
+    meck:new(acceptor, [passthrough]),
+    [acceptor|Mods].
     
 teardown(Mods) ->
     meck:unload(Mods).
 
+%% TestCase: broadcast messages
 proxy_test_() ->
     {foreach, 
      fun setup/0, 
@@ -20,7 +22,6 @@ proxy_test_() ->
      ]
     }.
 
-%% TestCase: broadcast messages
 acceptor_reply_with_promise() ->
     Round = 1,
     
@@ -32,9 +33,15 @@ acceptor_reply_with_promise() ->
 
     % issue broadcast
     acceptors:send_promise_request(Round),
-    timer:sleep(10),
+    timer:sleep(50),
 
-    % check that all acceptors returned a promise
+    % check that all acceptors got called
+    Promises = [meck:called(acceptor, prepare, [Acceptor, Round]) ||
+     		   Acceptor <- Acceptors],
+    ?assert(lists:all(fun(true) -> true;
+			 (_) -> false end, Promises)),
+
+    % check that all acceptors returned a value
     ?assertEqual(5, meck:num_calls(proposer, promised, '_')),
 
     % clean up
@@ -56,10 +63,6 @@ acceptor_reply_with_promises_one_acceptor_crash() ->
     ?assertEqual(4, meck:num_calls(proposer, promised, '_')),
     
     [acceptor:stop(Acceptor) || Acceptor <- LiveAcceptors].
-
-%% TestCase: receive responses
-% meck:called(proposer, promised, [Round])
-
 
 start_acceptors(N) ->
     AcceptorServers = [acceptor:start_link(
