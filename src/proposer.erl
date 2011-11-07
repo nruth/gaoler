@@ -37,7 +37,7 @@ init([Round, Value]) ->
     State = #state{round=Round, value=Value},
 
     % broadcast to acceptors 
-    acceptors:promise(Round),
+    acceptors:send_promise_request(Round),
 
     {ok, awaiting_promises, State}.
 
@@ -52,7 +52,7 @@ awaiting_promises({promised, Round}, #state{round=Round, value=Value}=State) ->
 	false ->
 	    {next_state, awaiting_promises, NewState};
 	true ->
-            acceptors:accept(Round, Value),
+            acceptors:send_accept_request(Round, Value),
 	    {next_state, awaiting_accepts, NewState}
     end;
 awaiting_promises(_Event, State) ->
