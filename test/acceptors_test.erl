@@ -15,7 +15,8 @@ proxy_test_() ->
      fun setup/0, 
      fun teardown/1,
      [
-      fun acceptor_reply_with_promise/0
+      fun acceptor_reply_with_promise/0,
+      fun acceptor_reply_with_promises_one_acceptor_crash/0      
      ]
     }.
 
@@ -24,11 +25,7 @@ acceptor_reply_with_promise() ->
     Round = 1,
     
     % start 5 acceptors
-    AcceptorServers = [acceptor:start_link(
-			 list_to_atom("acceptor" ++ 
-					  integer_to_list(X))) 
-		       || X <- lists:seq(0,4)],
-    Acceptors = [Pid || {ok, Pid} <- AcceptorServers],
+    Acceptors = start_acceptors(5),
 
     % remove dependency on group membership
     meck:expect(gaoler, get_acceptors, 0, Acceptors),
@@ -43,5 +40,30 @@ acceptor_reply_with_promise() ->
     % clean up
     [acceptor:stop(Acceptor) || Acceptor <- Acceptors].
 
+acceptor_reply_with_promises_one_acceptor_crash() ->
+    Round = 1,
+    Acceptors = start_acceptors(5),
+    meck:expect(gaoler, get_acceptors, 0, Acceptors),
+    
+    % kill one acceptor
+    [FirstAcceptor|LiveAcceptors] = Acceptors,
+    unlink(FirstAcceptor), % necessary for test process not to crash
+    exit(FirstAcceptor, crash),
+
+    acceptors:send_promise_request(Round),
+    timer:sleep(10),
+    
+    ?assertEqual(4, meck:num_calls(proposer, promised, '_')),
+    
+    [acceptor:stop(Acceptor) || Acceptor <- LiveAcceptors].
+
 %% TestCase: receive responses
 % meck:called(proposer, promised, [Round])
+
+
+start_acceptors(N) ->
+    AcceptorServers = [acceptor:start_link(
+			 list_to_atom("acceptor" ++ 
+					  integer_to_list(X))) 
+		       || X <- lists:seq(1,N)],
+    [Pid || {ok, Pid} <- AcceptorServers].
