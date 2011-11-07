@@ -1,7 +1,6 @@
 -record(state, 
 	{
-	  round,
-	  value,
-	  promises = 0,
-      acceptors_proxy
+	  round     = undefined,
+	  value     = undefined,
+	  promises  = 0
 	}).
