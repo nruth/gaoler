@@ -67,7 +67,7 @@ awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
 	false ->
 	    {next_state, awaiting_accepts, NewState};
 	true ->
-	    % deliver result 
+	    % deliver result to application (client) 
 	    gaoler:deliver(State#state.value),
 	    {next_state, accepted, NewState}
     end;
