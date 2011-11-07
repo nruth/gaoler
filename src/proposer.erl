@@ -7,7 +7,8 @@
 %% gen_fsm callbacks
 -export([init/1, 
 	 awaiting_promises/2,
-	 awaiting_accepts/0,
+	 awaiting_accepts/2,
+	 accepted/2,
 	 aborted/2
 	]).
 
@@ -58,9 +59,24 @@ awaiting_promises({promised, Round}, #state{round=Round, value=Value}=State) ->
 awaiting_promises(_Event, State) ->
     {next_state, awaiting_promises, State}.
 
+% shouldn't value be in here too?
+awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
+    % collect accept
+    NewState = State#state{accepts = State#state.accepts + 1},
+    case NewState#state.accepts >= ?MAJORITY of
+	false ->
+	    {next_state, awaiting_accepts, NewState};
+	true ->
+	    % deliver result to application (client) 
+	    gaoler:deliver(State#state.value),
+	    {next_state, accepted, NewState}
+    end;
+awaiting_accepts(_, State) ->
+    {next_state, awaiting_accepts, State}.
 
-awaiting_accepts() ->
-    ok.
+accepted(_, State) ->
+    {next_state, accepted, State}.
+
 
 aborted(_, State) ->
     {next_state, aborted, State}.

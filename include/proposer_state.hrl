@@ -2,5 +2,6 @@
 	{
 	  round     = undefined,
 	  value     = undefined,
-	  promises  = 0
+	  promises  = 0,
+	  accepts   = 0
 	}).
