@@ -5,9 +5,11 @@
 %% API
 -export([
 	 start_link/0, 
+	 start_link/1,
 	 stop/0, 
-	 prepare/1, 
-	 accept/2
+	 stop/1,
+	 prepare/2, 
+	 accept/3
 	]).
 
 %% gen_server callbacks
@@ -31,6 +33,9 @@
 start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+start_link(Name) ->
+    gen_server:start_link({local, Name}, ?MODULE, [], []).
+
 %%--------------------------------------------------------------------
 %% @doc Stops the server.
 %% @spec stop() -> ok
@@ -38,21 +43,24 @@ start_link() ->
 stop() ->
   gen_server:cast(?MODULE, stop).
 
+stop(Name) ->
+    gen_server:cast(Name, stop).
+
 %%--------------------------------------------------------------------
 %% @doc Request that the acceptor promises not to vote on older rounds
 %% @end
 %% TODO: spec
 %%--------------------------------------------------------------------
-prepare(Round) ->
-  gen_server:call(?MODULE, {prepare, Round}).
+prepare(Acceptor, Round) ->
+  gen_server:call(Acceptor, {prepare, Round}).
 
 %%--------------------------------------------------------------------
 %% @doc Request that the acceptor votes for the proposal
 %% @end
 %% TODO: spec
 %%--------------------------------------------------------------------
-accept(Round, Value) ->
-  gen_server:call(?MODULE, {accept, Round, Value}).
+accept(Acceptor, Round, Value) ->
+  gen_server:call(Acceptor, {accept, Round, Value}).
 
 
 %%%===================================================================
