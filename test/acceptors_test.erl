@@ -28,9 +28,6 @@ acceptor_reply_with_promise() ->
     % start 5 acceptors
     Acceptors = start_acceptors(5),
 
-    % remove dependency on group membership
-    meck:expect(gaoler, get_acceptors, 0, Acceptors),
-
     % issue broadcast
     acceptors:send_promise_request(Round),
     timer:sleep(50),
@@ -50,7 +47,6 @@ acceptor_reply_with_promise() ->
 acceptor_reply_with_promises_one_acceptor_crash() ->
     Round = 1,
     Acceptors = start_acceptors(5),
-    meck:expect(gaoler, get_acceptors, 0, Acceptors),
     
     % kill one acceptor
     [FirstAcceptor|LiveAcceptors] = Acceptors,
@@ -64,9 +60,16 @@ acceptor_reply_with_promises_one_acceptor_crash() ->
     
     [acceptor:stop(Acceptor) || Acceptor <- LiveAcceptors].
 
+
 start_acceptors(N) ->
     AcceptorServers = [acceptor:start_link(
 			 list_to_atom("acceptor" ++ 
 					  integer_to_list(X))) 
 		       || X <- lists:seq(1,N)],
-    [Pid || {ok, Pid} <- AcceptorServers].
+
+    Acceptors = [Pid || {ok, Pid} <- AcceptorServers],
+
+    % remove dependency on group membership
+    meck:expect(gaoler, get_acceptors, 0, Acceptors),
+    Acceptors.
+
