@@ -5,6 +5,7 @@ setup() ->
     Mods = [proposer, gaoler],
     meck:new(Mods),
     meck:expect(proposer, promised, 1, ok),
+    meck:expect(proposer, accepted, 1, ok),
     meck:new(acceptor, [passthrough]),
     [acceptor|Mods].
     
@@ -18,7 +19,8 @@ proxy_test_() ->
      fun teardown/1,
      [
       fun acceptor_reply_with_promise/0,
-      fun acceptor_reply_with_promises_one_acceptor_crash/0      
+      fun acceptor_reply_with_promises_one_acceptor_crash/0,
+      fun on_send_accept_acceptors_reply/0
      ]
     }.
 
@@ -61,6 +63,30 @@ acceptor_reply_with_promises_one_acceptor_crash() ->
     [acceptor:stop(Acceptor) || Acceptor <- LiveAcceptors].
 
 
+%% TestCase: Accept requests
+on_send_accept_acceptors_reply() ->
+    Round = 1,
+    Value = foo,
+    Acceptors = start_acceptors(5),
+
+    % issue broadcast
+    acceptors:send_accept_request(Round, Value),
+    timer:sleep(10),
+
+    % check that all acceptors got called
+    Accepts = [meck:called(acceptor, accept, [Acceptor, Round, Value]) ||
+     		   Acceptor <- Acceptors],
+    ?assert(lists:all(fun(true) -> true;
+			 (_) -> false end, Accepts)),
+
+    % check that all acceptors accepted or rejected the value
+    ?assertEqual(5, meck:num_calls(proposer, accepted, '_')),
+
+    % clean up
+    [acceptor:stop(Acceptor) || Acceptor <- Acceptors].
+
+
+%% Helper functions
 start_acceptors(N) ->
     AcceptorServers = [acceptor:start_link(
 			 list_to_atom("acceptor" ++ 
