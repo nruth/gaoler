@@ -50,7 +50,7 @@ init([]) ->
 
 
 handle_call(get_acceptors, _From, State) ->
-    Reply = [node()|nodes()],
+    Reply = [{acceptor, Node} || Node <- [node()|nodes()]],
     {reply, Reply, State}.
 
 
