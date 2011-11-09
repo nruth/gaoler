@@ -3,8 +3,7 @@
 -include_lib("proposer_state.hrl").
 %% API
 -export([
-	 start_link/0,
-	 start_link/1
+	 start_link/2
 	]).
 
 %% gen_fsm callbacks
@@ -30,11 +29,8 @@
 %%% API
 %%%===================================================================
 
-start_link() ->
-    start_link(?SERVER).
-
-start_link(Name) ->
-    gen_fsm:start_link({local, Name}, ?MODULE, [], []).
+start_link(Round, Value) ->
+    gen_fsm:start_link(?MODULE, [Round, Value], []).
 
 %%%===================================================================
 %%% gen_fsm callbacks

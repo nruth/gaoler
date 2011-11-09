@@ -1,7 +1,7 @@
 -module(house_sup).
 -behaviour(supervisor).
 
--export([start_link/1,
+-export([start_link/0,
 	 init/1]).
 
 -define(SERVER, ?MODULE).
@@ -12,17 +12,14 @@
 	  3600         % max seconds between restarts
 	 }).
 
-start_link(HouseSequence) ->
-    supervisor:start_link(?MODULE, [HouseSequence]).
+start_link() ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
-init([HouseSequence]) ->
-    AcceptorName = list_to_atom("acceptor"++integer_to_list(HouseSequence)),
-    ProposerName = list_to_atom("proposer"++integer_to_list(HouseSequence)),
-
-    Acceptor = {AcceptorName, {acceptor, start_link, [AcceptorName]}, 
+init([]) ->
+    Acceptor = {acceptor, {acceptor, start_link, []}, 
     		permanent, 2000, worker, [acceptor]},
 
-    Proposer = {ProposerName, {proposer, start_link, [ProposerName]},
-     		permanent, 2000, worker, [proposer]},
+%    Proposer = {proposer, {proposer, start_link, []},
+%     		permanent, 2000, worker, [proposer]},
 
-    {ok, {?SUPFLAGS, [Acceptor, Proposer]}}.
+    {ok, {?SUPFLAGS, [Acceptor]}}.
