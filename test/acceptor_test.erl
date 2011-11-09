@@ -11,7 +11,7 @@ promise_sent_when_no_higher_promises_made_test() ->
   Sender = nil,
   InitialState = ?NO_PROMISES,
   Result = acceptor:handle_call({prepare, 5}, Sender, InitialState),
-  ?assertMatch({reply, {promised, 5}, _}, Result).
+  ?assertMatch({reply, {promised, 5, no_value}, _}, Result).
 
 % since the proposer should know someone else has already prevented 
 % its round from succeeding and reuse of the same promised message
@@ -20,7 +20,7 @@ highest_promise_sent_when_lower_prepare_requested_test() ->
   Sender = nil,
   InitialState = ?PROMISED(6),
   Result = acceptor:handle_call({prepare, 5}, Sender, InitialState),
-  ?assertMatch({reply, {promised, 6}, _}, Result).
+  ?assertMatch({reply, {promised, 6, no_value}, _}, Result).
 
 promise_state_updated_by_higher_prepare_test() ->
   Sender = nil,
@@ -41,7 +41,7 @@ proposal_with_higher_round_than_promised_updates_accepted_test() ->
   InitialState = ?PROMISED_AND_ACCEPTED(4, prev),
   Proposal = {accept, 5, v},
   Result = acceptor:handle_call(Proposal, Sender, InitialState),
-  ?assertMatch({_, _, #state{accepted = v}}, Result).
+  ?assertMatch({_, _, #state{accepted = {5,v}}}, Result).
 
 proposal_with_lower_round_than_promised_does_not_change_accepted_test() ->
   Sender = nil, 
