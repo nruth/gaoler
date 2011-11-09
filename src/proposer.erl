@@ -44,10 +44,18 @@ init([Round, Value]) ->
 
     {ok, awaiting_promises, State}.
 
-awaiting_promises({promised, Round, AcceptedValue}, State) 
+awaiting_promises({promised, Round, _AcceptedValue}, State) 
   when Round > State#state.round ->
-    {next_state, aborted, State};
-awaiting_promises({promised, Round, AcceptedValue}, 
+    
+    % restart with Round+1 
+    NewState = State#state{round = Round+1,
+			   promises = 0},
+    
+    % possibly use exponential backoff
+    acceptors:send_promise_request(Round),
+    
+    {next_state, awaiting_promises, NewState};
+awaiting_promises({promised, Round, _AcceptedValue}, 
 		  #state{round=Round, value=Value}=State) -> 
     % collect promise
     NewState = State#state{promises = State#state.promises + 1},

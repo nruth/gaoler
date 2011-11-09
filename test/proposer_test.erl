@@ -12,6 +12,7 @@ setup() ->
     meck:new(Mods),
     meck:expect(gaoler, deliver, 1, ok),
     meck:expect(acceptors, send_accept_request, 2, ok),
+    meck:expect(acceptors, send_promise_request, 1, ok),
     Mods.
 
 teardown(Mods) ->
@@ -20,11 +21,10 @@ teardown(Mods) ->
 %% TestCase: initialise proposer
 on_init_proposer_broadcasts_prepare_test() ->
     Round = 1,
-    meck:new(acceptors),
-    meck:expect(acceptors, send_promise_request, 1, ok),
+    Mods = setup(),
     proposer:init([Round, val]),
     ?assert(meck:called(acceptors, send_promise_request, [Round])),
-    meck:unload(acceptors).
+    teardown(Mods).
 
 %% TestCase: awaiting_promises state
 awaiting_promises_test_() ->
@@ -35,7 +35,7 @@ awaiting_promises_test_() ->
       fun first_promise_received/0,
       fun on_promise_quorum_state_moves_to_accepting/0,
       fun on_promise_quorum_proposer_broadcasts_accept/0,
-      fun on_higher_promise_received_proposer_aborts/0
+      fun on_higher_promise_received_proposer_increments_round/0
      ]
     }.
 
@@ -65,14 +65,13 @@ on_promise_quorum_proposer_broadcasts_accept() ->
     ?assert(meck:called(acceptors, send_accept_request, '_')).
 
 % sad case: someone else has been promised a higher round
-% FIXME
-on_higher_promise_received_proposer_aborts() ->
+on_higher_promise_received_proposer_increments_round() ->
     Round = 1,
     AcceptedValue = no_value,
     InitialState = ?PROMISES(0)?ROUND(Round),
     Result = proposer:awaiting_promises({promised, 100, AcceptedValue}, 
 					InitialState),
-    ?assertMatch({next_state, aborted, _}, Result).
+    ?assertMatch({next_state, awaiting_promises, ?ROUND(101)}, Result).
 
 
 %% TestCase: awaiting_accepts state
