@@ -36,7 +36,15 @@ get_acceptors() ->
 
 init([]) ->
     process_flag(trap_exit, true),
-    {ok, GaolerNodes} = application:get_env(gaoler, nodes),
+%   gaoler_sup:start_house(),
+
+%    {ok, GaolerNodes} = application:get_env(gaoler, nodes),
+    GaolerNodes = [],
+    % determine whether to start local or not
+    % if local
+    %   start X acceptor-proposer instances and join all
+    % else 
+    %   start 1 acceptor-proposer instance and join
     
     % establish connection between nodes
     lists:all(fun(Node) -> case net_adm:ping(Node) of
@@ -44,6 +52,7 @@ init([]) ->
 			       _ -> false
 			   end
 	      end, GaolerNodes), 
+
     {ok, #state{}}.
 
 handle_call(get_acceptors, _From, State) ->

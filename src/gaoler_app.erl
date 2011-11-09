@@ -2,15 +2,14 @@
 
 -behaviour(application).
 
--export([start/2, stop/1]).
+-export([
+	 start/2, 
+	 stop/1
+	]).
 
 start(_StartType, _StartArgs) ->
-    Sup = gaoler_sup:start_link(),
-    {ok, Acceptor} = gaoler_sup:add_child_acceptor(acceptor),
-    register(acceptor, Acceptor),
-    gaoler:join({acceptor, node()}),
-    Sup.
-
+    gaoler_sup:start_link().
 
 stop(_State) ->
+    % todo: graceful shutdown
     ok.
