@@ -46,6 +46,9 @@ stop() ->
 
 init([]) ->
     process_flag(trap_exit, true),
+    {ok, Nodes} = application:get_env(gaoler, nodes),
+    % ping nodes from configuration
+    [spawn(fun() -> net_adm:ping(Node) end) || Node <- Nodes],
     {ok, #state{}}.
 
 
@@ -86,4 +89,3 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-    
