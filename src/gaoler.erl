@@ -10,14 +10,19 @@
 	]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+-export([
+	 init/1, 
+	 handle_call/3, 
+	 handle_cast/2, 
+	 handle_info/2,
+	 terminate/2, 
+	 code_change/3
+	]).
 
 -define(SERVER, ?MODULE). 
 -define(REQUIRED_MAJORITY, 3).
 
--record(state, { is_leader = false,
-		 acceptors = [] }).
+-record(state, {}).
 
 %%%===================================================================
 %%% API
@@ -50,7 +55,7 @@ handle_call(get_acceptors, _From, State) ->
 
 
 handle_cast({join, Node}, State) ->
-    erlang:monitor(node, Node),
+    erlang:monitor_node(Node, true),
     {noreply, State};
 handle_cast(stop, State) ->
     {stop, normal, State};
