@@ -13,17 +13,17 @@ handle_event({accepted, Round, Value}, State) ->
     NewState = case lists:keyfind(Key, 1, State) of
         {Key, AcceptedCount} ->
             NewAcceptedCount = AcceptedCount + 1,
-            Newlist = lists:keyreplace(Key, 1, State, {Key, NewAcceptedCount}),
-            case NewAcceptedCount >= ?MAJORITY of
-                true -> learners:broadcast_result(Value);
-                _ -> boo
-            end,
-            Newlist;
+            broadcast_value_if_majority(NewAcceptedCount, Value),
+            lists:keyreplace(Key, 1, State, {Key, NewAcceptedCount});
         false -> 
             [{Key, 1}  | State]
     end,
     {ok, NewState}.
 
+broadcast_value_if_majority(?MAJORITY, Value) ->
+    learners:broadcast_result(Value);
+broadcast_value_if_majority(_, _) ->
+    no.
 
 handle_call(_, State) ->
 {ok, ok, State}.
