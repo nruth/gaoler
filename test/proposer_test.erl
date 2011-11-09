@@ -42,27 +42,36 @@ awaiting_promises_test_() ->
 % happy case: no other proposers and round 1 succeeds
 first_promise_received() ->
     Round = 1,
-    InitialState = ?PROMISES(0)?ROUND(Round),
-    Result = proposer:awaiting_promises({promised, Round}, InitialState),
+    AcceptedValue = no_value,
+    InitialState = ?PROMISES(0)?ROUND(Round),    
+    Result = proposer:awaiting_promises({promised, Round, AcceptedValue}, 
+					InitialState),
     ?assertMatch({next_state, awaiting_promises, ?PROMISES(1)}, Result).
 
 on_promise_quorum_state_moves_to_accepting() ->
     Round = 1,
+    AcceptedValue = no_value,
     InitialState = ?PROMISES(2)?ROUND(Round),
-    Result = proposer:awaiting_promises({promised, Round}, InitialState),
+    Result = proposer:awaiting_promises({promised, Round, AcceptedValue},
+					InitialState),
     ?assertMatch({next_state, awaiting_accepts, ?PROMISES(3)}, Result).
 
 on_promise_quorum_proposer_broadcasts_accept() ->
     Round = 1,
+    AcceptedValue = no_value,
     InitialState = ?PROMISES(2)?ROUND(Round)?VALUE(foo),
-    proposer:awaiting_promises({promised, Round}, InitialState),
+    proposer:awaiting_promises({promised, Round, AcceptedValue}, 
+			       InitialState),
     ?assert(meck:called(acceptors, send_accept_request, '_')).
 
 % sad case: someone else has been promised a higher round
+% FIXME
 on_higher_promise_received_proposer_aborts() ->
     Round = 1,
+    AcceptedValue = no_value,
     InitialState = ?PROMISES(0)?ROUND(Round),
-    Result = proposer:awaiting_promises({promised, 100}, InitialState),
+    Result = proposer:awaiting_promises({promised, 100, AcceptedValue}, 
+					InitialState),
     ?assertMatch({next_state, aborted, _}, Result).
 
 

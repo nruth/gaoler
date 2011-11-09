@@ -44,10 +44,11 @@ init([Round, Value]) ->
 
     {ok, awaiting_promises, State}.
 
-awaiting_promises({promised, Round}, State) 
+awaiting_promises({promised, Round, AcceptedValue}, State) 
   when Round > State#state.round ->
     {next_state, aborted, State};
-awaiting_promises({promised, Round}, #state{round=Round, value=Value}=State) -> 
+awaiting_promises({promised, Round, AcceptedValue}, 
+		  #state{round=Round, value=Value}=State) -> 
     % collect promise
     NewState = State#state{promises = State#state.promises + 1},
 
