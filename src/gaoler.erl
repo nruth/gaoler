@@ -4,8 +4,9 @@
 %% API
 -export([
 	 start_link/0, 
-	 join/1,
-	 get_acceptors/0
+	 join/0,
+	 get_acceptors/0,
+	 stop/0
 	]).
 
 %% gen_server callbacks
@@ -13,6 +14,7 @@
 	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
+-define(REQUIRED_MAJORITY, 3).
 
 -record(state, { is_leader = false,
 		 acceptors = [] }).
@@ -24,11 +26,14 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-join(Acceptor) ->
-    gen_server:abcast(?SERVER, {join, Acceptor, node()}). 
+join() ->
+    gen_server:abcast(?SERVER, {join, node()}). 
 
 get_acceptors() ->
     gen_server:call(?SERVER, get_acceptors).
+
+stop() ->
+    gen_server:cast(?SERVER, stop).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -38,29 +43,30 @@ init([]) ->
     process_flag(trap_exit, true),
     {ok, #state{}}.
 
+
 handle_call(get_acceptors, _From, State) ->
-    Reply = State#state.acceptors,
-    {reply, Reply, State};
-handle_call(_Request, _From, State) ->
-    Reply = ok,
+    Reply = [node()|nodes()],
     {reply, Reply, State}.
 
-handle_cast({current_acceptors, NewAcceptors}, State) ->
-    NewState = merge_acceptors(NewAcceptors, State), 
-    {noreply, NewState};
-handle_cast({join, AcceptorNode, From}, State) ->
-    gen_server:cast({?SERVER, From}, 
-		    {current_acceptors, State#state.acceptors}),
-    NewState = handle_join(AcceptorNode, State), 
-    {noreply, NewState};
+
+handle_cast({join, Node}, State) ->
+    erlang:monitor(node, Node),
+    {noreply, State};
+handle_cast(stop, State) ->
+    {stop, normal, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info({'DOWN', _Ref, process, Object, Info}, State) ->
-    io:format("Removing ~p since ~p ~n", [Object,Info]),
-    NewAcceptors = lists:keydelete(Object, 1, State#state.acceptors),
-    NewState = State#state{acceptors = NewAcceptors},
-    {noreply, NewState};
+
+handle_info({nodedown, Node}, State) ->
+    io:format("Lost node: ~p~n", [Node]),
+    case length(gaoler:get_acceptors()) < ?REQUIRED_MAJORITY of 
+	true ->
+	    io:format("FATAL: Insufficient majority.~n", []);
+	false ->
+	    ok
+    end,
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -68,28 +74,11 @@ handle_info(_Info, State) ->
 terminate(_Reason, _State) ->
     ok.
 
-
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-merge_acceptors([], State) ->
-    State;
-merge_acceptors([{AcceptorNode, _Ref}|Tail], State) ->
-    NewState = 
-	case lists:keymember(AcceptorNode, 1, State#state.acceptors) of 
-	    false ->
-		handle_join(AcceptorNode, State);
-	    true ->
-		State
-	end,
-    merge_acceptors(Tail, NewState).
-
-handle_join(AcceptorNode, State) ->
-    Ref = erlang:monitor(process, AcceptorNode),
-    State#state{acceptors = [{AcceptorNode, Ref}|State#state.acceptors]}.
 
     
