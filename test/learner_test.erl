@@ -27,12 +27,13 @@ accept_received_for_known_value_increases_count_test() ->
     Result = learner:handle_event({accepted, Round, Value}, InitialState),
     ?assertEqual({ok, ?STATE(Round, Value, AcceptCount + 1)}, Result).
 
-
-% on_accept_quorum_proposer_delivers_value() ->
-%     Round = 20, Value = foo, AcceptCount = 2,
-%     InitialState = ?STATE(Round, Value, AcceptCount),
-%     Result = learner:handle_event({accepted, Round, Value}, InitialState),
-%     ?assert(meck:called(gaoler, deliver, [Value])).
+on_accept_quorum_proposer_delivers_value() ->
+    Round = 20, Value = foo, AcceptCount = 2,
+    meck:new(learners),
+    meck:expect(learners, broadcast_result, 1, ok),
+    InitialState = ?STATE(Round, Value, AcceptCount),
+    Result = learner:handle_event({accepted, Round, Value}, InitialState),
+    ?assert(meck:called(learners, broadcast_result, [Value])).
 
 
 %     Round = 1,

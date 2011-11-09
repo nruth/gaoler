@@ -9,33 +9,30 @@ init([]) ->
     {ok, []}.
 
 handle_event({accepted, Round, Value}, State) ->
-    {ok, update_accepted(Round, Value, State)}.
-
-update_accepted(Round, Value, State) ->
     Key = {Round, Value},
     NewState = case lists:keyfind(Key, 1, State) of
-        {Key,AcceptedCount} -> 
-            lists:keyreplace(Key, 1, State, {Key, AcceptedCount+1});
+        {Key, AcceptedCount} ->
+            NewAcceptedCount = AcceptedCount + 1,
+            Newlist = lists:keyreplace(Key, 1, State, {Key, NewAcceptedCount}),
+            case NewAcceptedCount >= ?MAJORITY of
+                true -> learners:broadcast_result(Value);
+                _ -> boo
+            end,
+            Newlist;
         false -> 
             [{Key, 1}  | State]
-    end.
+    end,
+    {ok, NewState}.
 
-
-
-
-
-
-
-%% otp boilerplate
 
 handle_call(_, State) ->
-    {ok, ok, State}.
+{ok, ok, State}.
 
 handle_info(_, State) ->
-    {ok, State}.
+{ok, State}.
 
 code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+{ok, State}.
 
 terminate(_Reason, _State) ->
-    ok.
+ok.
