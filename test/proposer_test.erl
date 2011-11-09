@@ -35,7 +35,8 @@ awaiting_promises_test_() ->
       fun first_promise_received/0,
       fun on_promise_quorum_state_moves_to_accepting/0,
       fun on_promise_quorum_proposer_broadcasts_accept/0,
-      fun on_higher_promise_received_proposer_increments_round/0
+      fun on_higher_promise_received_proposer_increments_round/0,
+      fun acceptor_has_already_voted_in_round/0
      ]
     }.
 
@@ -63,6 +64,14 @@ on_promise_quorum_proposer_broadcasts_accept() ->
     proposer:awaiting_promises({promised, Round, AcceptedValue}, 
 			       InitialState),
     ?assert(meck:called(acceptors, send_accept_request, '_')).
+
+acceptor_has_already_voted_in_round() ->
+    Round = 1,
+    AcceptedValue = {Round, foo},
+    InitialState = ?PROMISES(1)?ROUND(Round)?VALUE(bar),
+    Result = proposer:awaiting_promises({promised, Round, AcceptedValue},
+					InitialState),
+    ?assertMatch({next_state, awaiting_promises, ?VALUE(foo)}, Result).
 
 % sad case: someone else has been promised a higher round
 on_higher_promise_received_proposer_increments_round() ->
