@@ -49,9 +49,10 @@ init([Round, Value]) ->
 % on discovering a higher round has been promised
 awaiting_promises({promised, Round, _Accepted}, State) 
     when Round > State#state.round -> % restart with Round+1 
-        NewState = State#state{round = Round+1, promises = 0},
+    NextRound = Round + 1,
+        NewState = State#state{round = NextRound, promises = 0},
         % TODO: add exponential backoff
-        acceptors:send_promise_request(Round),
+        acceptors:send_promise_request(NextRound),
         {next_state, awaiting_promises, NewState};
         
 % on receiving a promise without past-vote data
