@@ -31,4 +31,4 @@ send_promise(Proposer, Acceptor, Round) ->
 
 send_accept(Proposer, Acceptor, Round, Value) ->
     Reply = acceptor:accept(Acceptor, Round, Value),
-    proposer:accepted(Proposer, Reply).
+    proposer:deliver_accept(Proposer, Reply).

@@ -13,7 +13,7 @@ setup() ->
     Mods = [acceptors, gaoler],
     meck:new(Mods),
     meck:expect(gaoler, deliver, 1, ok),
-    meck:expect(acceptors, send_accept_request, 2, ok),
+    meck:expect(acceptors, send_accept_request, 3, ok),
     meck:expect(acceptors, send_promise_request, 2, ok),
     Mods.
 
@@ -45,10 +45,13 @@ on_promise_containing_accepted_value_past_accept_added_test() ->
     ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[AcceptedValue]}}, Result).
 
 %% Testing proposer accept request broadcasts
-promise_quorum_broadcast_test_() -> {foreach, fun setup/0, fun teardown/1, [  
-    fun on_promise_quorum_state_moves_to_accepting/0, 
-    fun on_promise_quorum_proposer_broadcasts_accept/0
-]}.
+promise_quorum_broadcast_test_() -> 
+    {foreach, 
+     fun setup/0, fun teardown/1, 
+     [  
+        fun on_promise_quorum_state_moves_to_accepting/0, 
+        fun on_promise_quorum_proposer_broadcasts_accept/0
+     ]}.
 
 on_promise_quorum_state_moves_to_accepting() ->
     Round = 1,

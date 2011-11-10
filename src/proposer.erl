@@ -6,7 +6,8 @@
 %% API
 -export([
 	 start_link/2,
-	 deliver_promise/2
+	 deliver_promise/2,
+         deliver_accept/2
 	]).
 
 %% gen_fsm callbacks
@@ -36,6 +37,9 @@ start_link(Round, Value) ->
     gen_fsm:start_link(?MODULE, [Round, Value], []).
 
 deliver_promise(Proposer, AcceptorReply) ->
+    gen_fsm:send_event(Proposer, AcceptorReply).
+
+deliver_accept(Proposer, AcceptorReply) ->
     gen_fsm:send_event(Proposer, AcceptorReply).
 
 %%%===================================================================
@@ -82,7 +86,7 @@ loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) -> %quorum
         no_value -> 
             State#state.value
     end,
-    acceptors:send_accept_request(State#state.round, ProposalValue),
+    acceptors:send_accept_request(self(), State#state.round, ProposalValue),
     % move to the next state
     {next_state, awaiting_accepts, State};
 
