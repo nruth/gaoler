@@ -67,20 +67,41 @@ should_record_quorum_value() ->
 should_not_change_state_if_accept_received_after_decision_made() ->
     Round = 20, Value = foo, AcceptCount = 2,
     InitialState = ?STATE(Round, Value, AcceptCount),
-    {ok, NewState} = learner:handle_event({accepted, Round, Value}, InitialState),
-    ?assertEqual(NewState, ?DECIDED(Value)),
-    Result = learner:handle_event({accepted, Round, Value}, NewState),
-    ?assertEqual(Result, {ok, ?DECIDED(Value)}).
-
+    {ok, NewState1} = learner:handle_event({accepted, Round, Value}, InitialState),
+    ?assertEqual(NewState1, ?DECIDED(Value)),
+    {ok, NewState2} = learner:handle_event({accepted, Round, Value}, NewState1),
+    ?assertEqual(NewState2, ?DECIDED(Value)).
 
 %% END LEARNING A DECIDED VALUE BY COUNTING ACCEPTS
 
-%% LEARNING A DECISION BY NOTIFICATION FROM OTHER LEARNER
 
-should_store_value_when_decision_decision_notification_received_test() ->
+%% LEARNING A DECISION BY NOTIFICATION FROM OTHER LEARNER
+behaviour_on_receving_decision_notification_test_() ->
+    {foreach, fun setup/0, fun teardown/1, [
+      fun should_rebroadcast_decision_exactly_once/0,
+      fun should_store_value_when_decision_notification_received/0
+    ]}.
+
+should_store_value_when_decision_notification_received() ->
     Value = v,
     Result = learner:handle_event({result, Value}, ?NOSTATE),
     ?assertEqual({ok, ?DECIDED(Value)}, Result).
 
+should_rebroadcast_decision_exactly_once() ->
+    Value = foo,
+    {ok, NewState} = learner:handle_event({result, Value}, ?NOSTATE),
+    ?assertEqual(1, meck:num_calls(learners, broadcast_result, [Value])),
+    learner:handle_event({result, Value}, NewState),
+    ?assertEqual(1, meck:num_calls(learners, broadcast_result, [Value])).
 
 %% END LEARNING A DECISION BY NOTIFICATION FROM OTHER LEARNER
+
+
+%% meck stubs
+setup() ->
+    meck:new(learners),
+    meck:expect(learners, broadcast_result, 1, ok),
+    [learners].
+    
+teardown (Modules) ->
+    meck:unload(Modules).

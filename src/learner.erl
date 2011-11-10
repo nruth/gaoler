@@ -9,8 +9,13 @@ terminate/2]).
 init([]) ->
     {ok, []}.
 
+% already decided and rebroadcast, do nothing
+handle_event({result, _Value}, #decided{}=State) ->
+    {ok, State};
+
 % short-circuit to decided value
-handle_event({result, Value}, _State) -> 
+handle_event({result, Value}, _State) ->
+    learners:broadcast_result(Value),
     {ok, #decided{value = Value}};
 
 % already decided, so discard msgs
