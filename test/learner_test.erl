@@ -11,12 +11,12 @@
 %% LEARNING A DECIDED VALUE BY COUNTING ACCEPTS
 behaviour_while_counting_accept_votes_test_() -> 
     [
-    fun should_count_first_round_value_pair_acceptance_messages/0,
+    fun should_count_first_received_round_value_pair_acceptance_messages/0,
     fun should_count_further_round_value_pair_acceptance_messages/0,
     fun should_change_only_the_count_of_the_round_value_pair_accepted/0
     ].
 
-    should_count_first_round_value_pair_acceptance_messages() ->
+    should_count_first_received_round_value_pair_acceptance_messages() ->
         Round = 100, Value = foo, AcceptCount = 0,
         InitialState = ?NOSTATE,
         Result = learner:handle_event({accepted, Round, Value}, InitialState),
