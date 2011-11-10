@@ -34,11 +34,11 @@ broadcast_result_test_() ->
     fun(Modules) -> meck:unload(Modules) end,
      [
       fun dont_sent_multiple_quorum_broadcasts_on_4th_5th_accept/0,
-      fun on_accept_quorum_proposer_delivers_value/0
+      fun on_accept_quorum_proposer_broadcasts_value/0
      ]
     }.
 
-on_accept_quorum_proposer_delivers_value() ->
+on_accept_quorum_proposer_broadcasts_value() ->
     Round = 20, Value = foo, AcceptCount = 2,
     InitialState = ?STATE(Round, Value, AcceptCount),
     learner:handle_event({accepted, Round, Value}, InitialState),
