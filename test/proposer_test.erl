@@ -14,7 +14,7 @@ setup() ->
     meck:new(Mods),
     meck:expect(gaoler, deliver, 1, ok),
     meck:expect(acceptors, send_accept_request, 2, ok),
-    meck:expect(acceptors, send_promise_request, 1, ok),
+    meck:expect(acceptors, send_promise_request, 2, ok),
     Mods.
 
 teardown(Mods) ->
@@ -68,16 +68,19 @@ on_promise_quorum_proposer_broadcasts_accept() ->
 
 
 %% Testing proposer prepare request broadcasts
-proposer_broadcast_prepare_test_() -> {foreach, fun setup/0, fun teardown/1, [  
-    fun on_init_proposer_broadcasts_prepare/0, 
-    fun on_higher_promise_received_proposer_increments_round/0
-]}.
+proposer_broadcast_prepare_test_() -> 
+    {foreach, 
+     fun setup/0, fun teardown/1, 
+     [  
+        fun on_init_proposer_broadcasts_prepare/0, 
+        fun on_higher_promise_received_proposer_increments_round/0
+     ]}.
 
 % initialising proposer broadcasts prepare
 on_init_proposer_broadcasts_prepare() ->
     Round = 1,
     proposer:init([Round, val]),
-    ?assert(meck:called(acceptors, send_promise_request, [Round])).
+    ?assert(meck:called(acceptors, send_promise_request, [self(), Round])).
 
 % sad case: someone else has been promised a higher round
 on_higher_promise_received_proposer_increments_round() ->
