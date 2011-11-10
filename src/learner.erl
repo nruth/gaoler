@@ -1,29 +1,32 @@
 -module(learner).
 -behaviour(gen_event).
 -define(MAJORITY, 3).
- 
+-include_lib("decided_record.hrl").
+
 -export([init/1, handle_event/2, handle_call/2, handle_info/2, code_change/3,
 terminate/2]).
  
 init([]) ->
     {ok, []}.
 
+% short-circuit to decided value
+handle_event({result, Value}, _State) -> 
+    {ok, #decided{value = Value}};
+
+% already decided, so discard msgs
+handle_event({accepted, _Round, _Value}, #decided{}=State) -> {ok, State};
 handle_event({accepted, Round, Value}, State) ->
     Key = {Round, Value},
     NewState = case lists:keyfind(Key, 1, State) of
+        {Key, ?MAJORITY - 1} ->
+            learners:broadcast_result(Value),
+            #decided{value=Value};
         {Key, AcceptedCount} ->
-            NewAcceptedCount = AcceptedCount + 1,
-            broadcast_value_if_majority(NewAcceptedCount, Value),
-            lists:keyreplace(Key, 1, State, {Key, NewAcceptedCount});
+            lists:keyreplace(Key, 1, State, {Key, AcceptedCount + 1});
         false -> 
             [{Key, 1}  | State]
     end,
     {ok, NewState}.
-
-broadcast_value_if_majority(?MAJORITY, Value) ->
-    learners:broadcast_result(Value);
-broadcast_value_if_majority(_, _) ->
-    no.
 
 handle_call(_, State) ->
 {ok, ok, State}.

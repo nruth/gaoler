@@ -1,13 +1,18 @@
 -module(learner_test).
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("decided_record.hrl").
 
+-define (NOSTATE, []).
+-define (DECIDED (Value), #decided{value=Value}).
 -define (STATE (Round, Value, AcceptCount), [{{Round, Value}, AcceptCount}]).
 -define (JOIN_STATE (State1, State2), lists:append(State1, State2)).
 -define (ASSERT_SAME_ELEMENTS (List1, List2), ?assertEqual(lists:keysort(1,List1), lists:keysort(1,List2))).
 
+%% LEARNING A DECIDED VALUE BY COUNTING ACCEPTS
+
 first_accept_received_for_round_value_pair_counts_1_test() ->
     Round = 100, Value = foo, AcceptCount = 0,
-    InitialState = [],
+    InitialState = ?NOSTATE,
     Result = learner:handle_event({accepted, Round, Value}, InitialState),
     ?assertEqual({ok, ?STATE(Round, Value, AcceptCount + 1)}, Result).
 
@@ -24,7 +29,7 @@ accept_received_only_increases_its_own_value_test() ->
     ?ASSERT_SAME_ELEMENTS(NewState, ?JOIN_STATE(InitialState, ?STATE(Round, second_value, 1))).
 
 % Tests with Meck stub and cleanup of learners broadcast proxy
-broadcast_result_test_() ->
+behaviour_on_reaching_quorum_test_() ->
     {foreach,
     fun() ->
         meck:new(learners),
@@ -34,7 +39,9 @@ broadcast_result_test_() ->
     fun(Modules) -> meck:unload(Modules) end,
      [
       fun dont_sent_multiple_quorum_broadcasts_on_4th_5th_accept/0,
-      fun on_accept_quorum_proposer_broadcasts_value/0
+      fun on_accept_quorum_proposer_broadcasts_value/0,
+      fun should_record_quorum_value/0,
+      fun should_not_change_state_if_accept_received_after_decision_made/0
      ]
     }.
 
@@ -50,3 +57,30 @@ dont_sent_multiple_quorum_broadcasts_on_4th_5th_accept() ->
     ?assert(not meck:called(learners, broadcast_result, [Value])),
     learner:handle_event({accepted, Round, Value}, ?STATE(Round, Value, 4)),
     ?assert(not meck:called(learners, broadcast_result, [Value])).
+
+should_record_quorum_value() ->
+    Round = 20, Value = foo, AcceptCount = 2,
+    InitialState = ?STATE(Round, Value, AcceptCount),
+    Result = learner:handle_event({accepted, Round, Value}, InitialState),
+    ?assertEqual({ok, ?DECIDED(Value)}, Result).
+
+should_not_change_state_if_accept_received_after_decision_made() ->
+    Round = 20, Value = foo, AcceptCount = 2,
+    InitialState = ?STATE(Round, Value, AcceptCount),
+    {ok, NewState} = learner:handle_event({accepted, Round, Value}, InitialState),
+    ?assertEqual(NewState, ?DECIDED(Value)),
+    Result = learner:handle_event({accepted, Round, Value}, NewState),
+    ?assertEqual(Result, {ok, ?DECIDED(Value)}).
+
+
+%% END LEARNING A DECIDED VALUE BY COUNTING ACCEPTS
+
+%% LEARNING A DECISION BY NOTIFICATION FROM OTHER LEARNER
+
+should_store_value_when_decision_decision_notification_received_test() ->
+    Value = v,
+    Result = learner:handle_event({result, Value}, ?NOSTATE),
+    ?assertEqual({ok, ?DECIDED(Value)}, Result).
+
+
+%% END LEARNING A DECISION BY NOTIFICATION FROM OTHER LEARNER
