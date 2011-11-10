@@ -30,7 +30,7 @@ when_deliver_message_to_client_check_callback_is_called_test() ->
     meck:new(Module),
     meck:expect(Module, Function, 1, ok),
     InitialState = ?SUBSCRIBER({Module, Function}),
-    Result = gaoler:handle_cast({deliver, value}, nil, InitialState),
+    gaoler:handle_cast({deliver, value}, InitialState),
     timer:sleep(10),
     ?assert(meck:called(dummy, deliver, '_')),
     meck:unload(Module).
