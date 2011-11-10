@@ -1,6 +1,8 @@
 -module(proposer).
 -behaviour(gen_fsm).
 -include_lib("proposer_state.hrl").
+-include_lib("accepted_record.hrl").
+
 %% API
 -export([
 	 start_link/2,
@@ -41,37 +43,61 @@ promised(Proposer, AcceptorReply) ->
 %%%===================================================================
 
 init([Round, Value]) ->
-    State = #state{round=Round, value=Value},
-
-    % broadcast to acceptors 
     acceptors:send_promise_request(Round),
+    {ok, awaiting_promises, #state{round=Round, value=Value}}.
 
-    {ok, awaiting_promises, State}.
+% on discovering a higher round has been promised
+awaiting_promises({promised, Round, _Accepted}, State) 
+    when Round > State#state.round -> % restart with Round+1 
+        NewState = State#state{round = Round+1, promises = 0},
+        % TODO: add exponential backoff
+        acceptors:send_promise_request(Round),
+        {next_state, awaiting_promises, NewState};
+        
+% on receiving a promise without past-vote data
+awaiting_promises({promised, Round, no_value}, #state{round=Round}=State) ->
+    loop_until_promise_quorum(State#state{promises = State#state.promises + 1});
 
-awaiting_promises({promised, Round, _AcceptedValue}, State) 
-  when Round > State#state.round ->
-    
-    % restart with Round+1 
-    NewState = State#state{round = Round+1,
-			   promises = 0},
-    
-    % add exponential backoff
-    acceptors:send_promise_request(Round),
-    
-    {next_state, awaiting_promises, NewState};
-awaiting_promises({promised, Round, {Round, VotedValue}}, 
-		  #state{round=Round}=State) ->
-    NewState = State#state{promises = State#state.promises + 1,
-			   value = VotedValue},
-    move_state_on_majority(NewState);
-awaiting_promises({promised, Round, _AcceptedValue}, 
-		  #state{round=Round}=State) -> 
-    % collect promise
-    NewState = State#state{promises = State#state.promises + 1},
-    move_state_on_majority(NewState);
-awaiting_promises(_Event, State) ->
+% on receiving a promise with accompanying previous-vote data
+awaiting_promises( {promised, Round, #accepted{}=Accepted}, 
+    #state{round=Round}=State) -> 
+    loop_until_promise_quorum(
+        State#state{ 
+            promises = State#state.promises + 1,
+            past_accepts = [ Accepted | State#state.past_accepts ]
+        }
+    );
+
+% on receiving unknown message
+awaiting_promises(_, State) ->
     {next_state, awaiting_promises, State}.
 
+loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) -> %quorum
+    % if promises carried accepted values: propose the one accepted in the highest round
+    % else when no accepted values sent: propose a new value
+    ProposalValue = case highest_round_accepted_value(State#state.past_accepts) of 
+        #accepted{value=HighestRoundAcceptedValue} -> 
+            HighestRoundAcceptedValue;
+        no_value -> 
+            State#state.value
+    end,
+    acceptors:send_accept_request(State#state.round, ProposalValue),
+    % move to the next state
+    {next_state, awaiting_accepts, State};
+
+loop_until_promise_quorum(State) -> % keep waiting
+    {next_state, awaiting_promises, State}.
+
+highest_round_accepted_value([]) -> no_value;
+highest_round_accepted_value([A]) -> A;
+highest_round_accepted_value(PastAccepts) ->
+    [HighestValue|_] = lists:sort(
+        fun (#accepted{}=A, #accepted{}=B) ->
+            A#accepted.round =< B#accepted.round 
+        end,
+        PastAccepts
+    ),
+    HighestValue.
 
 awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
     % collect accept
@@ -97,14 +123,3 @@ handle_sync_event(_Event, _From, StateName, State) ->
 handle_info(_Info, StateName, State) -> {next_state, StateName, State}.
 terminate(_Reason, _StateName, _State) -> ok.
 code_change(_OldVsn, StateName, State, _Extra) -> {ok, StateName, State}.
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-move_state_on_majority(#state{promises = Promises}=State) 
-  when Promises >= ?MAJORITY ->
-    acceptors:send_accept_request(State#state.round, State#state.value),
-    {next_state, awaiting_accepts, State};
-move_state_on_majority(State) ->
-    {next_state, awaiting_promises, State}.

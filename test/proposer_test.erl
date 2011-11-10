@@ -1,12 +1,14 @@
 -module(proposer_test).
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("proposer_state.hrl").
+-include_lib("accepted_record.hrl").
 
 -define(PROMISES(N),#state{promises=N}).
 -define(ACCEPTS(N), #state{accepts=N}).
 -define(ROUND(N),   #state{round=N}).
 -define(VALUE(V),   #state{value=V}).
 
+%% Meck stub modules, used to enable decoupled unit tests
 setup() ->
     Mods = [acceptors, gaoler],
     meck:new(Mods),
@@ -18,36 +20,35 @@ setup() ->
 teardown(Mods) ->
     meck:unload(Mods).
 
-%% TestCase: initialise proposer
-on_init_proposer_broadcasts_prepare_test() ->
-    Round = 1,
-    Mods = setup(),
-    proposer:init([Round, val]),
-    ?assert(meck:called(acceptors, send_promise_request, [Round])),
-    teardown(Mods).
-
-%% TestCase: awaiting_promises state
-awaiting_promises_test_() ->
-    {foreach, 
-     fun setup/0, 
-     fun teardown/1,
-     [
-      fun first_promise_received/0,
-      fun on_promise_quorum_state_moves_to_accepting/0,
-      fun on_promise_quorum_proposer_broadcasts_accept/0,
-      fun on_higher_promise_received_proposer_increments_round/0,
-      fun acceptor_has_already_voted_in_round/0
-     ]
-    }.
 
 % happy case: no other proposers and round 1 succeeds
-first_promise_received() ->
+first_promise_received_test() ->
     Round = 1,
     AcceptedValue = no_value,
     InitialState = ?PROMISES(0)?ROUND(Round),    
     Result = proposer:awaiting_promises({promised, Round, AcceptedValue}, 
 					InitialState),
     ?assertMatch({next_state, awaiting_promises, ?PROMISES(1)}, Result).
+
+on_promise_containing_no_accepted_value_no_past_accept_added_test() ->
+    PrepareRound = 300,
+    AcceptedValue = no_value,
+    InitialState = ?PROMISES(1)?ROUND(PrepareRound)?VALUE(bar),
+    Result = proposer:awaiting_promises({promised, PrepareRound, AcceptedValue}, InitialState),
+    ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[]}}, Result).
+
+on_promise_containing_accepted_value_past_accept_added_test() ->
+    PrepareRound = 300,
+    AcceptedValue = #accepted{round=10, value=foo},
+    InitialState = ?PROMISES(1)?ROUND(PrepareRound)?VALUE(bar),
+    Result = proposer:awaiting_promises({promised, PrepareRound, AcceptedValue}, InitialState),
+    ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[AcceptedValue]}}, Result).
+
+%% Testing proposer accept request broadcasts
+promise_quorum_broadcast_test_() -> {foreach, fun setup/0, fun teardown/1, [  
+    fun on_promise_quorum_state_moves_to_accepting/0, 
+    fun on_promise_quorum_proposer_broadcasts_accept/0
+]}.
 
 on_promise_quorum_state_moves_to_accepting() ->
     Round = 1,
@@ -65,13 +66,18 @@ on_promise_quorum_proposer_broadcasts_accept() ->
 			       InitialState),
     ?assert(meck:called(acceptors, send_accept_request, '_')).
 
-acceptor_has_already_voted_in_round() ->
+
+%% Testing proposer prepare request broadcasts
+proposer_broadcast_prepare_test_() -> {foreach, fun setup/0, fun teardown/1, [  
+    fun on_init_proposer_broadcasts_prepare/0, 
+    fun on_higher_promise_received_proposer_increments_round/0
+]}.
+
+% initialising proposer broadcasts prepare
+on_init_proposer_broadcasts_prepare() ->
     Round = 1,
-    AcceptedValue = {Round, foo},
-    InitialState = ?PROMISES(1)?ROUND(Round)?VALUE(bar),
-    Result = proposer:awaiting_promises({promised, Round, AcceptedValue},
-					InitialState),
-    ?assertMatch({next_state, awaiting_promises, ?VALUE(foo)}, Result).
+    proposer:init([Round, val]),
+    ?assert(meck:called(acceptors, send_promise_request, [Round])).
 
 % sad case: someone else has been promised a higher round
 on_higher_promise_received_proposer_increments_round() ->
