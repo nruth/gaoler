@@ -5,7 +5,8 @@
 -export([
 	 start_link/0, 
 	 join/1,
-	 get_acceptors/0
+	 get_acceptors/0,
+	 learners/0
 	]).
 
 %% gen_server callbacks
@@ -29,6 +30,8 @@ join(Acceptor) ->
 
 get_acceptors() ->
     gen_server:call(?SERVER, get_acceptors).
+
+learners() -> []. %TODO: group membership
 
 %%%===================================================================
 %%% gen_server callbacks
