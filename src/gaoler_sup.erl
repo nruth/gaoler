@@ -4,8 +4,7 @@
 
 %% API
 -export([
-	 start_link/0,
-	 add_child_acceptor/1
+	 start_link/0
 	]).
 
 %% Supervisor callbacks
@@ -22,16 +21,10 @@ start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 init([]) ->
-    Restart = permanent,
-    Shutdown = 2000,
-    Type = worker,
-
     GaolerService = {gaoler, {gaoler, start_link, []},
-		     Restart, Shutdown, Type, [gaoler]},
+		     permanent, 2000, worker, [gaoler]},
 
-    {ok, {?SUPFLAGS, [GaolerService]}}.
+    HouseSup = {house_sup, {house_sup, start_link, []},
+		permanent, 2000, supervisor, [house_sup]},
 
-add_child_acceptor(AcceptorName) ->
-    AcceptorChild = {AcceptorName, {acceptor, start, []}, 
-		     permanent, 2000, worker, [acceptor]},
-    supervisor:start_child(?SERVER, AcceptorChild).
+    {ok, {?SUPFLAGS, [GaolerService, HouseSup]}}.

@@ -1,8 +1,14 @@
 -module(proposer).
 -behaviour(gen_fsm).
 -include_lib("proposer_state.hrl").
+-include_lib("accepted_record.hrl").
+
 %% API
--export([start_link/0]).
+-export([
+	 start_link/2,
+	 deliver_promise/2,
+         deliver_accept/2
+	]).
 
 %% gen_fsm callbacks
 -export([init/1, 
@@ -27,39 +33,77 @@
 %%% API
 %%%===================================================================
 
-start_link() ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Round, Value) ->
+    gen_fsm:start_link(?MODULE, [Round, Value], []).
+
+deliver_promise(Proposer, AcceptorReply) ->
+    gen_fsm:send_event(Proposer, AcceptorReply).
+
+deliver_accept(Proposer, AcceptorReply) ->
+    gen_fsm:send_event(Proposer, AcceptorReply).
 
 %%%===================================================================
 %%% gen_fsm callbacks
 %%%===================================================================
 
 init([Round, Value]) ->
-    State = #state{round=Round, value=Value},
+    acceptors:send_promise_request(self(), Round),
+    {ok, awaiting_promises, #state{round=Round, value=Value}}.
 
-    % broadcast to acceptors 
-    acceptors:send_promise_request(Round),
+% on discovering a higher round has been promised
+awaiting_promises({promised, Round, _Accepted}, State) 
+    when Round > State#state.round -> % restart with Round+1 
+    NextRound = Round + 1,
+    NewState = State#state{round = NextRound, promises = 0},
+    % TODO: add exponential backoff
+    acceptors:send_promise_request(self(), NextRound),
+    {next_state, awaiting_promises, NewState};
+        
+% on receiving a promise without past-vote data
+awaiting_promises({promised, Round, no_value}, #state{round=Round}=State) ->
+    loop_until_promise_quorum(State#state{promises = State#state.promises + 1});
 
-    {ok, awaiting_promises, State}.
+% on receiving a promise with accompanying previous-vote data
+awaiting_promises( {promised, Round, #accepted{}=Accepted}, 
+    #state{round=Round}=State) -> 
+    loop_until_promise_quorum(
+        State#state{ 
+            promises = State#state.promises + 1,
+            past_accepts = [ Accepted | State#state.past_accepts ]
+        }
+    );
 
-awaiting_promises({promised, Round}, State) 
-  when Round > State#state.round ->
-    {next_state, aborted, State};
-awaiting_promises({promised, Round}, #state{round=Round, value=Value}=State) -> 
-    % collect promise
-    NewState = State#state{promises = State#state.promises + 1},
-
-    case NewState#state.promises >= ?MAJORITY of
-	false ->
-	    {next_state, awaiting_promises, NewState};
-	true ->
-            acceptors:send_accept_request(Round, Value),
-	    {next_state, awaiting_accepts, NewState}
-    end;
-awaiting_promises(_Event, State) ->
+% on receiving unknown message
+awaiting_promises(_, State) ->
     {next_state, awaiting_promises, State}.
 
-% shouldn't value be in here too?
+loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) -> %quorum
+    % if promises carried accepted values: propose the one accepted in the highest round
+    % else when no accepted values sent: propose a new value
+    ProposalValue = case highest_round_accepted_value(State#state.past_accepts) of 
+        #accepted{value=HighestRoundAcceptedValue} -> 
+            HighestRoundAcceptedValue;
+        no_value -> 
+            State#state.value
+    end,
+    acceptors:send_accept_request(self(), State#state.round, ProposalValue),
+    % move to the next state
+    {next_state, awaiting_accepts, State};
+
+loop_until_promise_quorum(State) -> % keep waiting
+    {next_state, awaiting_promises, State}.
+
+highest_round_accepted_value([]) -> no_value;
+highest_round_accepted_value([A]) -> A;
+highest_round_accepted_value(PastAccepts) ->
+    [HighestValue|_] = lists:sort(
+        fun (#accepted{}=A, #accepted{}=B) ->
+            A#accepted.round =< B#accepted.round 
+        end,
+        PastAccepts
+    ),
+    HighestValue.
+
 awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
     % collect accept
     NewState = State#state{accepts = State#state.accepts + 1},
@@ -74,104 +118,13 @@ awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
 awaiting_accepts(_, State) ->
     {next_state, awaiting_accepts, State}.
 
-accepted(_, State) ->
-    {next_state, accepted, State}.
 
-
-aborted(_, State) ->
-    {next_state, aborted, State}.
-
-handle_event(_Event, StateName, State) ->
-    {next_state, StateName, State}.
-
+%% OTP Boilerplate
+accepted(_, State) -> {next_state, accepted, State}.
+aborted(_, State) -> {next_state, aborted, State}.
+handle_event(_Event, StateName, State) -> {next_state, StateName, State}.
 handle_sync_event(_Event, _From, StateName, State) ->
-    Reply = ok,
-    {reply, Reply, StateName, State}.
-
-handle_info(_Info, StateName, State) ->
-    {next_state, StateName, State}.
-
-
-terminate(_Reason, _StateName, _State) ->
-    ok.
-
-code_change(_OldVsn, StateName, State, _Extra) ->
-    {ok, StateName, State}.
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-
-
-
-
-%% propose(Round, Value) ->
-%%     spawn (
-%%     Proposal = prepare(Round, Value),
-%%     Result = ballot(Round, Proposal),
-%%       from ! result ),
-%%     receive 
-%% 	Result  ->
-%% 	    Result;
-%%     after ?TIMEOUT ->
-%% 	    dead
-%%     end.
-
-%% prepare(Acceptors, Round, Value) ->
-%%     Message = {prepare, Round},
-    
-%%     case wait_for_promises(Round, 0, no_previous_value) of
-%% 	no_previous_value ->
-%% 	    Value;
-%% 	PreviousValue ->
-%% 	    PreviousValue
-%%     end,
-
-%%     {Round, Value}.
-
-%% wait_for_promises(_Round, ?MAJORITY, Votes) -> 
-%% % votes = previously accepted values for an acceptor    
-%%     Votes;
-%% wait_for_promises(Round, NumberOfReplies, PreviousVote) ->
-%%     receive 
-%% 	{promised, Round, LatestVote} ->
-%% 	    NewVote = add_latest_vote(LatestVote, PreviousVote),
-%% 	    wait_for_promises(Round, NumberOfReplies+1, NewVote);
-%% 	_Other ->
-%% 	    wait_for_promises(Round, NumberOfReplies, PreviousVote)
-%%     end.
-	    
-
-%% ballot(Round, Proposal) ->
-%%     % send ballot to acceptors
-%%     Ballot = msg,
-    
-%%     Result = wait_for_ballot(Round, Proposal, 0, no_previous_value),
-%%     % wait for quorum
-%%     % return 
-%%     Result.
-
-%% wait_for_ballot(Round, Proposal, ?MAJORITY, Votes) ->
-%%     Votes;
-%% wait_for_ballot(Round, Proposal, NumberOfReplies, PreviousVote) ->
-%%     ok.
-
-
-%% broadcast([], _, _) ->
-%%     ok;
-%% broadcast([Target|TargetGroup], From, Message) ->
-%%     Target ! {Message, From},
-%%     broadcast(TargetGroup, From, Message).
-
-
-
-%% add_latest_vote({Round, _Value}=Vote, {OldRound,_OldValue}=OldVote) ->
-%%     case Round > OldRound of
-%% 	true ->
-%% 	    Vote;
-%% 	false ->
-%% 	    OldVote
-%%     end;
-%% add_latest_vote(Vote, no_previous_value) ->
-%%     Vote.
+    {reply, ok, StateName, State}.
+handle_info(_Info, StateName, State) -> {next_state, StateName, State}.
+terminate(_Reason, _StateName, _State) -> ok.
+code_change(_OldVsn, StateName, State, _Extra) -> {ok, StateName, State}.
