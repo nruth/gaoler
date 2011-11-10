@@ -6,7 +6,7 @@
 %% API
 -export([
 	 start_link/2,
-	 promised/2
+	 deliver_promise/2
 	]).
 
 %% gen_fsm callbacks
@@ -35,7 +35,7 @@
 start_link(Round, Value) ->
     gen_fsm:start_link(?MODULE, [Round, Value], []).
 
-promised(Proposer, AcceptorReply) ->
+deliver_promise(Proposer, AcceptorReply) ->
     gen_fsm:send_event(Proposer, AcceptorReply).
 
 %%%===================================================================

@@ -4,7 +4,7 @@
 setup() ->
     Mods = [proposer, gaoler],
     meck:new(Mods),
-    meck:expect(proposer, promised, 2, ok),
+    meck:expect(proposer, deliver_promise, 2, ok),
     meck:expect(proposer, accepted, 2, ok),
     meck:new(acceptor, [passthrough]),
     [acceptor|Mods].
@@ -41,7 +41,7 @@ acceptor_reply_with_promise() ->
 			 (_) -> false end, Promises)),
 
     % check that all acceptors returned a value
-    ?assertEqual(5, meck:num_calls(proposer, promised, '_')),
+    ?assertEqual(5, meck:num_calls(proposer, deliver_promise, '_')),
 
     % clean up
     [acceptor:stop(Acceptor) || Acceptor <- Acceptors].
@@ -58,7 +58,7 @@ acceptor_reply_with_promises_one_acceptor_crash() ->
     acceptors:send_promise_request(proposer, Round),
     timer:sleep(10),
     
-    ?assertEqual(4, meck:num_calls(proposer, promised, '_')),
+    ?assertEqual(4, meck:num_calls(proposer, deliver_promise, '_')),
     
     [acceptor:stop(Acceptor) || Acceptor <- LiveAcceptors].
 

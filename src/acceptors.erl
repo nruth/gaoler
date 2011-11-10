@@ -27,7 +27,7 @@ send_accept_request(ReplyToProposer, Round, Value) ->
 %% Internal functions
 send_promise(Proposer, Acceptor, Round) ->    
     Reply = acceptor:prepare(Acceptor, Round),
-    proposer:promised(Proposer, Reply).
+    proposer:deliver_promise(Proposer, Reply).
 
 send_accept(Proposer, Acceptor, Round, Value) ->
     Reply = acceptor:accept(Acceptor, Round, Value),
