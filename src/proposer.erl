@@ -14,8 +14,7 @@
 -export([init/1, 
 	 awaiting_promises/2,
 	 awaiting_accepts/2,
-	 accepted/2,
-	 aborted/2
+	 accepted/2
 	]).
 
 
@@ -121,7 +120,6 @@ awaiting_accepts(_, State) ->
 
 %% OTP Boilerplate
 accepted(_, State) -> {next_state, accepted, State}.
-aborted(_, State) -> {next_state, aborted, State}.
 handle_event(_Event, StateName, State) -> {next_state, StateName, State}.
 handle_sync_event(_Event, _From, StateName, State) ->
     {reply, ok, StateName, State}.
