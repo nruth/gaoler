@@ -77,16 +77,16 @@ behaviour_on_reaching_quorum_test_() ->
 
 behaviour_on_receving_decision_notification_test_() ->
     {foreach, fun setup/0, fun teardown/1, [
-      fun should_rebroadcast_decision_exactly_once/0,
-      fun should_store_value_when_decision_notification_received/0
+      fun should_learn_the_value_sent_by_another_learner/0,
+      fun should_rebroadcast_learned_value_exactly_once/0
     ]}.
 
-    should_store_value_when_decision_notification_received() ->
+    should_learn_the_value_sent_by_another_learner() ->
         Value = v,
         ?assertEqual({ok, ?DECIDED(Value)}, learner:handle_event({result, Value}, ?NOSTATE)),
         ?assertEqual({ok, ?DECIDED(Value)}, learner:handle_event({result, Value}, ?DECIDED(Value))).
 
-    should_rebroadcast_decision_exactly_once() ->
+    should_rebroadcast_learned_value_exactly_once() ->
         Value = foo,
         {ok, NewState} = learner:handle_event({result, Value}, ?NOSTATE),
         ?assertEqual(1, meck:num_calls(learners, broadcast_result, [Value])),

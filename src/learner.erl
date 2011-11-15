@@ -12,14 +12,15 @@ init([]) ->
 % already decided and rebroadcast, do nothing
 handle_event({result, _Value}, #decided{}=State) ->
     {ok, State};
+% already decided, so discard msgs
+handle_event({accepted, _Round, _Value}, #decided{}=State) -> 
+    {ok, State};
 
-% short-circuit to decided value
+% short-circuit to decided value when notified of a result
 handle_event({result, Value}, _State) ->
     learners:broadcast_result(Value),
     {ok, #decided{value = Value}};
-
-% already decided, so discard msgs
-handle_event({accepted, _Round, _Value}, #decided{}=State) -> {ok, State};
+% counting accept votes
 handle_event({accepted, Round, Value}, State) ->
     Key = {Round, Value},
     NewState = case lists:keyfind(Key, 1, State) of
