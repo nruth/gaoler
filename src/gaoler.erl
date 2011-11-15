@@ -8,6 +8,7 @@
 	 start_link/0, 
 	 join/0,
 	 get_acceptors/0,
+	 learners/0,
 	 stop/0,
 	 subscribe/1,
 	 unsubscribe/1,
@@ -56,8 +57,12 @@ join() ->
 get_acceptors() ->
     gen_server:call(?SERVER, get_acceptors).
 
+learners() -> %TODO: group membership
+    []. 
+
 stop() ->
     gen_server:cast(?SERVER, stop).
+
 
 %%%===================================================================
 %%% gen_server callbacks
