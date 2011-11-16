@@ -9,6 +9,14 @@ terminate/2]).
 init([]) ->
     {ok, []}.
 
+%respond to value queries
+handle_event({get_learned, Sender}, #decided{value=Value}=State) ->
+    Sender ! {learned, Value},
+    {ok, State};
+handle_event({get_learned, Sender}, State) ->
+    Sender ! dontknow,
+    {ok, State};
+
 % already decided and rebroadcast, do nothing
 handle_event({result, _Value}, #decided{}=State) ->
     {ok, State};

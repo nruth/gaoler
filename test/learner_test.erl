@@ -9,12 +9,11 @@
 -define (ASSERT_SAME_ELEMENTS (List1, List2), ?assertEqual(lists:keysort(1,List1), lists:keysort(1,List2))).
 
 %% LEARNING A DECIDED VALUE BY COUNTING ACCEPTS
-behaviour_while_counting_accept_votes_test_() -> 
-    [
+behaviour_while_counting_accept_votes_test_() -> [
     fun should_count_first_received_round_value_pair_acceptance_messages/0,
     fun should_count_further_round_value_pair_acceptance_messages/0,
     fun should_change_only_the_count_of_the_round_value_pair_accepted/0
-    ].
+].
 
     should_count_first_received_round_value_pair_acceptance_messages() ->
         Round = 100, Value = foo, AcceptCount = 0,
@@ -35,13 +34,13 @@ behaviour_while_counting_accept_votes_test_() ->
         ?ASSERT_SAME_ELEMENTS(NewState, ?JOIN_STATE(InitialState, ?STATE(Round, second_value, 1))).
 
 % Tests with Meck stub and cleanup of learners broadcast proxy
-behaviour_on_reaching_quorum_test_() ->
+behaviour_on_reaching_quorum_test_() -> 
     {foreach, fun setup/0, fun teardown/1, [
-      fun should_broadcast_decided_value_when_quorum_observed/0,
-      fun should_not_broadcast_decided_value_again_for_4th_5th_accept/0,
-      fun should_record_quorum_value/0,
-      fun should_not_change_state_if_accept_received_after_decision_made/0
-    ]}.
+    fun should_broadcast_decided_value_when_quorum_observed/0,
+    fun should_not_broadcast_decided_value_again_for_4th_5th_accept/0,
+    fun should_record_quorum_value/0,
+    fun should_not_change_state_if_accept_received_after_decision_made/0
+]}.
 
     should_broadcast_decided_value_when_quorum_observed() ->
         Round = 20, Value = foo, AcceptCount = 2,
@@ -75,11 +74,11 @@ behaviour_on_reaching_quorum_test_() ->
 
 %% LEARNING A DECISION BY NOTIFICATION FROM OTHER LEARNER
 
-behaviour_on_receving_decision_notification_test_() ->
+behaviour_on_receving_decision_notification_test_() -> 
     {foreach, fun setup/0, fun teardown/1, [
-      fun should_learn_the_value_sent_by_another_learner/0,
-      fun should_rebroadcast_learned_value_exactly_once/0
-    ]}.
+    fun should_learn_the_value_sent_by_another_learner/0,
+    fun should_rebroadcast_learned_value_exactly_once/0
+]}.
 
     should_learn_the_value_sent_by_another_learner() ->
         Value = v,
@@ -94,6 +93,24 @@ behaviour_on_receving_decision_notification_test_() ->
         ?assertEqual(1, meck:num_calls(learners, broadcast_result, [Value])).
 
 %% END LEARNING A DECISION BY NOTIFICATION FROM OTHER LEARNER
+
+
+behaviour_on_receicing_a_learned_value_query_test_() ->[
+    fun should_respond_with_learned_value/0,
+    fun should_respond_unknown_before_value_learned/0
+].
+
+    should_respond_with_learned_value() ->
+        Sender = nspy:mock(),
+        learner:handle_event({get_learned, Sender}, ?DECIDED(value)),
+        ?assertEqual([{learned, value}], nspy:get_messages_from_spy(Sender)).
+
+    should_respond_unknown_before_value_learned() ->
+        Sender = nspy:mock(),
+        learner:handle_event({get_learned, Sender}, ?NOSTATE),
+        ?assertEqual([dontknow], nspy:get_messages_from_spy(Sender)),
+        learner:handle_event({get_learned, Sender}, ?STATE(1, v, 1)),
+        ?assertEqual([dontknow, dontknow], nspy:get_messages_from_spy(Sender)).
 
 
 %% meck stubs
