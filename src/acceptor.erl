@@ -56,7 +56,7 @@ NewState = State#state{promised = HighestPromise},
 {reply, {promised, HighestPromise, NewState#state.accepted}, NewState}.
 
 handle_accept(Round, Value, State) when Round >= State#state.promised ->
-{reply, {accept, Round}, State#state{accepted={Round, Value}}};
+{reply, {accept, Round, Value}, State#state{accepted={Round, Value}}};
 handle_accept(Round, _, State) -> 
 {reply, {reject, Round}, State}.
 
