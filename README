@@ -7,4 +7,4 @@ Eunit tests:
 
 Common tests:
       Add code:add_pathz("/path/to/gaoler/ebin/"). to your ~/.erlang file
-      rebar ct
+      rebar compile ct
