@@ -6,15 +6,14 @@
 
 send_promise_requests(ReplyToProposer, Round) ->
     [spawn(fun() -> 
-		   send_promise_request(ReplyToProposer, Acceptor, Round) 
-	   end) || Acceptor <- gaoler:get_acceptors()],
+        send_promise_request(ReplyToProposer, Acceptor, Round) 
+    end) || Acceptor <- gaoler:get_acceptors()],
     ok.
 
-send_accept_requests(ReplyToProposer, Round, Value) ->
+send_accept_requests(_Proposer, Round, Value) ->
     [spawn(fun() -> 
-		   send_accept_request(ReplyToProposer, 
-					 Acceptor, Round, Value) 
-	   end) || Acceptor <- gaoler:get_acceptors()],
+        send_accept_request(Acceptor, Round, Value) 
+    end) || Acceptor <- gaoler:get_acceptors() ],
     ok.
 
 
@@ -23,6 +22,6 @@ send_promise_request(Proposer, Acceptor, Round) ->
     Reply = acceptor:prepare(Acceptor, Round),
     proposer:deliver_promise(Proposer, Reply).
 
-send_accept_request(Proposer, Acceptor, Round, Value) ->
+send_accept_request(Acceptor, Round, Value) ->
     Reply = acceptor:accept(Acceptor, Round, Value),
-    proposer:deliver_accept(Proposer, Reply).
+    learners:broadcast_accept(Reply).
