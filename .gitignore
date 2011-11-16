@@ -1,6 +1,7 @@
 .eunit
 deps
 priv
+logs
 *.o
 *.beam
 *~

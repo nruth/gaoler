@@ -4,7 +4,7 @@
 -compile(export_all).
 
 % required for common_test to work
--include("ct.hrl").
+-include_lib("common_test/include/ct.hrl").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% common test callbacks %%
@@ -20,8 +20,8 @@ init_per_suite(Config) ->
     [{ok, _} = slave:start(list_to_atom(net_adm:localhost()), 
                            Slave, NodeConfiguration) || 
         Slave <- Slaves],
-
     [{slaves, Slaves}|Config].
+
 
 end_per_suite(Config) ->
     [slave:stop(Slave) || Slave <- nodes()],
@@ -47,4 +47,7 @@ end_per_testcase(_TestCase, Config) ->
 %%%%%%%%%%%%%%%%
 
 slave_test(Config) ->
-    'master@archie-laptop' = node().
+    ok.
+   
+
+
