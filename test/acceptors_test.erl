@@ -2,10 +2,11 @@
 -include_lib("eunit/include/eunit.hrl").
 
 setup() ->
-    Mods = [proposer, gaoler],
+    Mods = [proposer, gaoler, learners],
     meck:new(Mods),
     meck:expect(proposer, deliver_promise, 2, ok),
     meck:expect(proposer, deliver_accept, 2, ok),
+    meck:expect(learners, broadcast_accept, 1, ok),
     meck:new(acceptor, [passthrough]),
     [acceptor|Mods].
     
@@ -80,7 +81,7 @@ on_send_accept_acceptors_reply() ->
 			 (_) -> false end, Accepts)),
 
     % check that all acceptors accepted or rejected the value
-    ?assertEqual(5, meck:num_calls(proposer, deliver_accept, '_')),
+    ?assertEqual(5, meck:num_calls(learners, broadcast_accept, '_')),
 
     % clean up
     [acceptor:stop(Acceptor) || Acceptor <- Acceptors].

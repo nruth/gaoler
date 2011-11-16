@@ -3,10 +3,11 @@
 
 -export ([
     broadcast_result/1,
-    deliver_accept/1
+    broadcast_accept/1
 ]).
 
-deliver_accept(Accepted) ->
+broadcast_accept({reject, _Round}) -> ok;
+broadcast_accept({accept, _Round, _Value}=Accepted) ->
     case gaoler:learners() of
         [] -> erlang:errors(no_learners);
         Learners ->
