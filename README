@@ -1,3 +1,10 @@
 Pronounced "jailer".
 
 Compile using rebar. Makefile added for convenience. 
+
+Eunit tests:
+      rebar compile eunit
+
+Common tests:
+      Add code:add_pathz("/path/to/gaoler/ebin/"). to your ~/.erlang file
+      rebar ct
