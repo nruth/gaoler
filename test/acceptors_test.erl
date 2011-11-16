@@ -31,7 +31,7 @@ acceptor_reply_with_promise() ->
     Acceptors = start_acceptors(5),
 
     % issue broadcast
-    acceptors:send_promise_request(proposer, Round),
+    acceptors:send_promise_requests(proposer, Round),
     timer:sleep(50),
 
     % check that all acceptors got called
@@ -55,7 +55,7 @@ acceptor_reply_with_promises_one_acceptor_crash() ->
     unlink(FirstAcceptor), % necessary for test process not to crash
     exit(FirstAcceptor, crash),
 
-    acceptors:send_promise_request(proposer, Round),
+    acceptors:send_promise_requests(proposer, Round),
     timer:sleep(10),
     
     ?assertEqual(4, meck:num_calls(proposer, deliver_promise, '_')),
@@ -70,7 +70,7 @@ on_send_accept_acceptors_reply() ->
     Acceptors = start_acceptors(5),
 
     % issue broadcast
-    acceptors:send_accept_request(proposer, Round, Value),
+    acceptors:send_accept_requests(proposer, Round, Value),
     timer:sleep(10),
 
     % check that all acceptors got called
