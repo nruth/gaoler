@@ -22,4 +22,5 @@ put(Proposal) ->
     end.
 
 paxos(Proposal) ->
-    proposer:propose(Proposal).
+    proposer:propose(Proposal),
+    learner:await_result().
