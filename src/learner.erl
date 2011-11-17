@@ -5,6 +5,18 @@
 
 -export([init/1, handle_event/2, handle_call/2, handle_info/2, code_change/3,
 terminate/2]).
+-export([get/0]).
+
+%% Sends a blocking value query to the local learner 
+%% returns dontknow on timeout, i.e. assumes value was not learned
+get() ->
+    % only query the local node's registered learner;
+    % sidesteps consensus/asynch issues with remotes
+    gen_event:notify(learner, {get_learned, self()})
+    receive
+        {learned, Value} -> Value
+    after 50 -> dontknow
+    end.
  
 init([]) ->
     {ok, []}.
