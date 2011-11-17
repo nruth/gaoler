@@ -103,7 +103,7 @@ behaviour_on_receicing_a_learned_value_query_test_() ->[
 
     should_respond_with_learned_value() ->
         ?assertMatch(
-            {reply, value, _},
+            {reply, {learned, value}, _},
             learner:handle_call(get_learned, from, ?DECIDED(value))
         ).
 

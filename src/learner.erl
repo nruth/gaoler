@@ -18,7 +18,7 @@ init([]) -> {ok, []}.
 
 %respond to value queries
 handle_call(get_learned, _From, #decided{value=Value}=State) ->
-    {reply, Value, State};
+    {reply, {learned, Value}, State};
 handle_call(get_learned, _From, State) ->
     {reply, dontknow, State}.
 
