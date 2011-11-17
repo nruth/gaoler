@@ -1,10 +1,9 @@
 -module(learner).
--behaviour(gen_event).
+-behaviour(gen_server).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(MAJORITY, 3).
 -include_lib("decided_record.hrl").
 
--export([init/1, handle_event/2, handle_call/2, handle_info/2, code_change/3,
-terminate/2]).
 -export([get/0]).
 
 %% Sends a blocking value query to the local learner 
@@ -12,36 +11,30 @@ terminate/2]).
 get() ->
     % only query the local node's registered learner;
     % sidesteps consensus/asynch issues with remotes
-    gen_event:notify(learner, {get_learned, self()})
-    receive
-        {learned, Value} -> Value
-    after 50 -> dontknow
-    end.
- 
-init([]) ->
-    {ok, []}.
+    gen_event:call(learner, get_learned).
+
+% starts with empty data store
+init([]) -> {ok, []}.
 
 %respond to value queries
-handle_event({get_learned, Sender}, #decided{value=Value}=State) ->
-    Sender ! {learned, Value},
-    {ok, State};
-handle_event({get_learned, Sender}, State) ->
-    Sender ! dontknow,
-    {ok, State};
+handle_call(get_learned, _From, #decided{value=Value}=State) ->
+    {reply, Value, State};
+handle_call(get_learned, _From, State) ->
+    {reply, dontknow, State}.
 
 % already decided and rebroadcast, do nothing
-handle_event({result, _Value}, #decided{}=State) ->
+handle_cast({result, _Value}, #decided{}=State) ->
     {ok, State};
 % already decided, so discard msgs
-handle_event({accepted, _Round, _Value}, #decided{}=State) -> 
+handle_cast({accepted, _Round, _Value}, #decided{}=State) -> 
     {ok, State};
 
 % short-circuit to decided value when notified of a result
-handle_event({result, Value}, _State) ->
+handle_cast({result, Value}, _State) ->
     learners:broadcast_result(Value),
     {ok, #decided{value = Value}};
 % counting accept votes
-handle_event({accepted, Round, Value}, State) ->
+handle_cast({accepted, Round, Value}, State) ->
     Key = {Round, Value},
     NewState = case lists:keyfind(Key, 1, State) of
         {Key, ?MAJORITY - 1} ->
@@ -52,16 +45,14 @@ handle_event({accepted, Round, Value}, State) ->
         false -> 
             [{Key, 1}  | State]
     end,
-    {ok, NewState}.
+    {ok, NewState};
 
-handle_call(_, State) ->
-{ok, ok, State}.
+handle_cast(stop, State) -> 
+    {stop, normal, State}.
 
-handle_info(_, State) ->
-{ok, State}.
-
-code_change(_OldVsn, State, _Extra) ->
-{ok, State}.
-
-terminate(_Reason, _State) ->
-ok.
+%%%===================================================================
+%%% Uninteresting gen_server boilerplate
+%%%===================================================================
+handle_info(_Info, State) -> {noreply, State}.
+terminate(_Reason, _State) -> ok.
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
