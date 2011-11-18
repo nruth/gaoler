@@ -17,8 +17,7 @@ get() ->
 put(Proposal) ->
     case learner:get() of
         {learned, Value} -> Value;
-        unknown -> paxos(Proposal).
-            
+        unknown -> paxos(Proposal)
     end.
 
 paxos(Proposal) ->
