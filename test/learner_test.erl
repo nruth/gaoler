@@ -136,6 +136,14 @@ behaviour_on_receicing_a_learned_value_query_test_() ->[
             learner:handle_call(get_learned, from, State)
         ).
 
+
+await_result_test() ->
+    % no msg sent, timeout
+    ?assertEqual(timeout, learner:await_result(1)),
+    % receive well-formed result notification
+    self() ! {result, v},
+    ?assertEqual({result, v}, learner:await_result(10)).
+
 %% meck stubs
 setup() ->
     meck:new(learners),
