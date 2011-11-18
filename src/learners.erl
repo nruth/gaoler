@@ -8,19 +8,7 @@
 
 broadcast_accept({reject, _Round}) -> ok;
 broadcast_accept({accept, _Round, _Value}=Accepted) ->
-    case gaoler:learners() of
-        [] -> erlang:errors(no_learners);
-        Learners ->
-            [spawn(fun() -> gen_event:notify(Learner, Accepted) end) ||
-        	Learner <- Learners]
-    end,
-    ok.
+    gen_server:abcast(learner, Accepted).
 
 broadcast_result(Value) ->
-    case gaoler:learners() of
-        [] -> erlang:errors(no_learners);
-        Learners ->
-            [spawn(fun() -> gen_event:notify(Learner, {result, Value}) end) ||
-        	Learner <- Learners]
-    end,
-    ok.
+    gen_server:abcast(learner, {result, Value}).
