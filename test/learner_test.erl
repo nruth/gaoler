@@ -7,7 +7,7 @@
 -define (DECIDED (Value), #learner{learned=#decided{value=Value}}).
 -define (ACCEPTCOUNT (Round, Value, Count), {{Round, Value}, Count}).
 -define (STATE (Round, Value, AcceptCount), #learner{
-    accepted = [ ?ACCEPTCOUNT(Round, Value, AcceptCount) ]
+    accepts = [ ?ACCEPTCOUNT(Round, Value, AcceptCount) ]
 }).
 -define (CALLBACKS(Callbacks), #learner{callbacks=Callbacks}).
 
@@ -34,8 +34,8 @@ behaviour_while_counting_accept_votes_test_() -> [
         Round = 1, AcceptCount = 1,
         InitialState = ?STATE(Round, first_value, AcceptCount),
         {ok, NewState} = learner:handle_cast({accepted, Round, second_value}, InitialState),
-        ?assertEqual(1, proplists:get_value({Round, first_value}, NewState#learner.accepted)),
-        ?assertEqual(1, proplists:get_value({Round, second_value}, NewState#learner.accepted)).
+        ?assertEqual(1, proplists:get_value({Round, first_value}, NewState#learner.accepts)),
+        ?assertEqual(1, proplists:get_value({Round, second_value}, NewState#learner.accepts)).
 
 % Tests with Meck stub and cleanup of learners broadcast proxy
 behaviour_on_reaching_quorum_test_() -> 

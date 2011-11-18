@@ -44,17 +44,17 @@ handle_cast({accepted, _Round, _Value}, #learner{learned=#decided{}}=State) ->
 handle_cast({result, Value}, State) ->
     {ok, learn_value_and_update_state(Value, State)};
 % counting accept votes
-handle_cast({accepted, Round, Value}, #learner{accepted=Accepted}=State) ->
+handle_cast({accepted, Round, Value}, #learner{accepts=Accepted}=State) ->
     Key = {Round, Value},
     NewState = case lists:keyfind(Key, 1, Accepted) of
         {Key, ?MAJORITY - 1} ->
             learn_value_and_update_state(Value, State);
         {Key, AcceptedCount} ->
             NewAccepted = lists:keyreplace(Key, 1, Accepted, {Key, AcceptedCount + 1}),
-            State#learner{accepted=NewAccepted};
+            State#learner{accepts=NewAccepted};
         false -> 
             NewAccepted = [{Key, 1}  | Accepted],
-            State#learner{accepted=NewAccepted}
+            State#learner{accepts=NewAccepted}
     end,
     {ok, NewState};
 
@@ -67,7 +67,7 @@ learn_value_and_update_state(Value, State) ->
     % discard all callbacks, which have now been sent, 
     % and discard vote counts, which has now been decided
     State#learner{
-        accepted = [],
+        accepts = [],
         learned = #decided{value = Value},
         callbacks = []
     }.
