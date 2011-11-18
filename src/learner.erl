@@ -5,7 +5,7 @@
 -include_lib("decided_record.hrl").
 -include_lib("learner_state.hrl").
 
--export([get/0, await_result/1]).
+-export([get/0, await_result/1, register_callback/0]).
 
 %% Sends a blocking value query to the local learner 
 %% returns dontknow on timeout, i.e. assumes value was not learned
@@ -14,8 +14,13 @@ get() ->
     % sidesteps consensus/asynch issues with remotes
     gen_event:call(learner, get_learned).
 
+%% Register with local learner for callback on next decision of value
+%%  * Blocks until registration confirmed
+register_callback() ->
+    gen_event:call(learner, register_callback).
+
 %% Blocks awaiting result callback from a learner
-%% returns timeout when Timeout exceded
+%%  * returns timeout when Timeout exceded
 await_result(Timeout) ->
     receive
         {result, _Value}=Result -> Result
@@ -27,14 +32,14 @@ await_result(Timeout) ->
 init([]) -> {ok, #learner{}}.
 
 handle_call(get_learned, _From, State) ->
-    handle_get_learned(State).
+    handle_get_learned(State);
+handle_call(register_callback, From, State) ->
+    {reply, registered, State#learner{callbacks=[From|State#learner.callbacks]}}.
 
 handle_cast({result, Value}, State) -> 
     handle_result_notice(Value, State);
 handle_cast({accepted, Round, Value}, State) -> 
     handle_accepted_notice(Round, Value, State);
-handle_cast({register_callback, CallbackPid}, State) ->
-    {ok, State#learner{callbacks=[CallbackPid|State#learner.callbacks]}};
 handle_cast(stop, State) -> 
     {stop, normal, State}.
 
