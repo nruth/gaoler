@@ -11,15 +11,6 @@
     propose/1
     ]).
 
-%% begins an election where the proposer will seek
-%% concensus on a value, proposing Proposal if no
-%% other value has already been accepted by a majority
-propose(Proposal) ->
-    % TODO: specifying a round here doesn't seem appropriate?
-    Round = 1, 
-    % TODO: is start_link appropriate? what about proc failures?
-    gen_fsm:start_link(Round, Proposal). 
-
 %% gen_fsm callbacks
 -export([init/1, 
 	 awaiting_promises/2,
@@ -41,6 +32,15 @@ propose(Proposal) ->
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+%% begins an election where the proposer will seek
+%% concensus on a value, proposing Proposal if no
+%% other value has already been accepted by a majority
+propose(Proposal) ->
+    % TODO: specifying a round here doesn't seem appropriate?
+    Round = 1, 
+    % TODO: is start_link appropriate? what about proc failures?
+    gen_fsm:start_link(Round, Proposal).
 
 start_link(Round, Value) ->
     gen_fsm:start_link(?MODULE, [Round, Value], []).
