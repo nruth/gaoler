@@ -14,6 +14,8 @@ get() ->
     % sidesteps consensus/asynch issues with remotes
     gen_event:call(learner, get_learned).
 
+%% Blocks awaiting result callback from a learner
+%% returns timeout when Timeout exceded
 await_result(Timeout) ->
     receive
         {result, _Value}=Result -> Result
@@ -24,42 +26,22 @@ await_result(Timeout) ->
 % starts with empty data store
 init([]) -> {ok, #learner{}}.
 
-%respond to value queries
-handle_call(get_learned, _From, #learner{learned=#decided{value=Value}}=State) ->
-    {reply, {learned, Value}, State};
 handle_call(get_learned, _From, State) ->
-    {reply, dontknow, State}.
+    handle_get_learned(State).
 
+handle_cast({result, Value}, State) -> 
+    handle_result_notice(Value, State);
+handle_cast({accepted, Round, Value}, State) -> 
+    handle_accepted_notice(Round, Value, State);
 handle_cast({register_callback, CallbackPid}, State) ->
     {ok, State#learner{callbacks=[CallbackPid|State#learner.callbacks]}};
-
-% already decided and rebroadcast, do nothing
-handle_cast({result, _Value}, #learner{learned=#decided{}}=State) ->
-    {ok, State};
-% already decided, so discard msgs
-handle_cast({accepted, _Round, _Value}, #learner{learned=#decided{}}=State) -> 
-    {ok, State};
-
-% short-circuit to decided value when notified of a result
-handle_cast({result, Value}, State) ->
-    {ok, learn_value_and_update_state(Value, State)};
-% counting accept votes
-handle_cast({accepted, Round, Value}, #learner{accepts=Accepted}=State) ->
-    Key = {Round, Value},
-    NewState = case lists:keyfind(Key, 1, Accepted) of
-        {Key, ?MAJORITY - 1} ->
-            learn_value_and_update_state(Value, State);
-        {Key, AcceptedCount} ->
-            NewAccepted = lists:keyreplace(Key, 1, Accepted, {Key, AcceptedCount + 1}),
-            State#learner{accepts=NewAccepted};
-        false -> 
-            NewAccepted = [{Key, 1}  | Accepted],
-            State#learner{accepts=NewAccepted}
-    end,
-    {ok, NewState};
-
 handle_cast(stop, State) -> 
     {stop, normal, State}.
+
+
+%%%===================================================================
+%%% Internals
+%%%===================================================================
 
 learn_value_and_update_state(Value, State) ->
     learners:broadcast_result(Value),
@@ -75,6 +57,42 @@ learn_value_and_update_state(Value, State) ->
 send_callbacks(Value, RegisteredCallbacks) ->
     [Pid ! {result, Value} || Pid <- RegisteredCallbacks],
     ok.
+
+%% responds to value queries
+handle_get_learned(State) -> 
+    case State of 
+    #learner{learned=#decided{value=Value}} -> 
+        {reply, {learned, Value}, State};
+    _else -> 
+        {reply, dontknow, State}
+    end.
+
+handle_result_notice(Value, State) ->
+    case State of
+        #learner{learned=#decided{}} ->
+            % already decided and rebroadcast, do nothing
+            {ok, State};
+        _ -> % short-circuit to decided value when notified of a result
+            {ok, learn_value_and_update_state(Value, State)}
+    end.
+
+handle_accepted_notice(_Round, _Value, #learner{learned=#decided{}}=State) ->
+    % already decided, so discard msgs
+    {ok, State};
+handle_accepted_notice(Round, Value, #learner{accepts=Accepted}=State) ->
+    % counting accept votes
+    Key = {Round, Value},
+    NewState = case lists:keyfind(Key, 1, Accepted) of
+        {Key, ?MAJORITY - 1} ->
+            learn_value_and_update_state(Value, State);
+        {Key, AcceptedCount} ->
+            NewAccepted = lists:keyreplace(Key, 1, Accepted, {Key, AcceptedCount + 1}),
+            State#learner{accepts=NewAccepted};
+        false -> 
+            NewAccepted = [{Key, 1}  | Accepted],
+            State#learner{accepts=NewAccepted}
+    end,
+    {ok, NewState}.
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
