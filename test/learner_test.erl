@@ -1,12 +1,15 @@
 -module(learner_test).
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("decided_record.hrl").
+-include_lib("learner_state.hrl").
 
--define (NOSTATE, []).
--define (DECIDED (Value), #decided{value=Value}).
--define (STATE (Round, Value, AcceptCount), [{{Round, Value}, AcceptCount}]).
--define (JOIN_STATE (State1, State2), lists:append(State1, State2)).
--define (ASSERT_SAME_ELEMENTS (List1, List2), ?assertEqual(lists:keysort(1,List1), lists:keysort(1,List2))).
+-define (NOSTATE, #learner{}).
+-define (DECIDED (Value), #learner{learned=#decided{value=Value}}).
+-define (ACCEPTCOUNT (Round, Value, Count), {{Round, Value}, Count}).
+-define (STATE (Round, Value, AcceptCount), #learner{
+    accepted = [ ?ACCEPTCOUNT(Round, Value, AcceptCount) ]
+}).
+-define (CALLBACKS(Callbacks), #learner{callbacks=Callbacks}).
 
 %% LEARNING A DECIDED VALUE BY COUNTING ACCEPTS
 behaviour_while_counting_accept_votes_test_() -> [
@@ -31,18 +34,20 @@ behaviour_while_counting_accept_votes_test_() -> [
         Round = 1, AcceptCount = 1,
         InitialState = ?STATE(Round, first_value, AcceptCount),
         {ok, NewState} = learner:handle_cast({accepted, Round, second_value}, InitialState),
-        ?ASSERT_SAME_ELEMENTS(NewState, ?JOIN_STATE(InitialState, ?STATE(Round, second_value, 1))).
+        ?assertEqual(1, proplists:get_value({Round, first_value}, NewState#learner.accepted)),
+        ?assertEqual(1, proplists:get_value({Round, second_value}, NewState#learner.accepted)).
 
 % Tests with Meck stub and cleanup of learners broadcast proxy
 behaviour_on_reaching_quorum_test_() -> 
     {foreach, fun setup/0, fun teardown/1, [
-    fun should_broadcast_decided_value_when_quorum_observed/0,
+    fun should_notify_other_learners_when_quorum_observed/0,
     fun should_not_broadcast_decided_value_again_for_4th_5th_accept/0,
     fun should_record_quorum_value/0,
-    fun should_not_change_state_if_accept_received_after_decision_made/0
+    fun should_not_change_state_if_accept_received_after_decision_made/0,
+    fun should_perform_callbacks/0
 ]}.
 
-    should_broadcast_decided_value_when_quorum_observed() ->
+    should_notify_other_learners_when_quorum_observed() ->
         Round = 20, Value = foo, AcceptCount = 2,
         InitialState = ?STATE(Round, Value, AcceptCount),
         learner:handle_cast({accepted, Round, Value}, InitialState),
@@ -68,6 +73,13 @@ behaviour_on_reaching_quorum_test_() ->
         ?assertEqual(NewState1, ?DECIDED(Value)),
         {ok, NewState2} = learner:handle_cast({accepted, Round, Value}, NewState1),
         ?assertEqual(NewState2, ?DECIDED(Value)).
+
+    should_perform_callbacks() ->
+        CallMe = nspy:mock(),
+        Round = 20, Value = foo, AcceptCount = 2,
+        InitialState = ?STATE(Round, Value, AcceptCount)?CALLBACKS([CallMe]),
+        learner:handle_cast({accepted, Round, Value}, InitialState),
+        nspy:assert_message_received(CallMe, {result, Value}).
 
 %% END LEARNING A DECIDED VALUE BY COUNTING ACCEPTS
 
