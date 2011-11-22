@@ -36,14 +36,15 @@ get() ->
 %%          - Learner -> Coordinator the chosen value
 put(Proposal, Timeout) ->
     case learner:get() of
-    {learned, Value} -> Value;
-    unknown -> paxos(Proposal, Timeout)
+        {learned, Value} -> Value;
+        unknown -> paxos(Proposal, Timeout);
+        Else -> error({undefined, Else})
     end.
 
 %% makes a proposal and waits for the outcome
 paxos(Proposal, Timeout) ->
     % register callback first to avoid race-condition
     % where paxos may finish before we insert our callback
-    learner:register_callback(self()),
+    registered = learner:register_callback(),
     proposer:propose(Proposal),
     learner:await_result(Timeout).

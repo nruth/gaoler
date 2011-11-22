@@ -40,7 +40,7 @@ propose(Proposal) ->
     % TODO: specifying a round here doesn't seem appropriate?
     Round = 1, 
     % TODO: is start_link appropriate? what about proc failures?
-    gen_fsm:start_link(Round, Proposal).
+    ?MODULE:start_link(Round, Proposal).
 
 start_link(Round, Value) ->
     gen_fsm:start_link(?MODULE, [Round, Value], []).
