@@ -55,7 +55,9 @@ coordinator_no_proposed_value_test(Config) ->
 
 coordinator_put_new_proposal_test(Config) ->
     Value = my_value,
-    {result, Value} = coordinator:put(Value, 1000).
+    {result, Value} = coordinator:put(Value, 1000),
+    Value = coordinator:get(),
+    Value = coordinator:put(else, 1000).
    
 
 

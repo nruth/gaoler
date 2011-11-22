@@ -34,6 +34,8 @@ get() ->
 %%          Consequently:
 %%          - Acceptor persists the (highest) round number and chosen value
 %%          - Learner -> Coordinator the chosen value
+
+%%% TODO: fix the api of results and rename to propose/2
 put(Proposal, Timeout) ->
     case learner:get() of
         {learned, Value} -> Value;
