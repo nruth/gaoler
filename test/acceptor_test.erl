@@ -66,14 +66,14 @@ accept_request_replies_test_() -> [
         InitialState = ?PROMISED(5),
         Proposal = {accept, 5, v},
         Result = acceptor:handle_call(Proposal, Sender, InitialState),
-        ?assertMatch({reply, {accept, 5, v}, _}, Result).
+        ?assertMatch({reply, {accepted, 5, v}, _}, Result).
 
     should_reply_accept_for_round_higher_than_promise() ->
         Sender = nil,
         InitialState = ?PROMISED(3),
         Proposal = {accept, 5, v},
         Result = acceptor:handle_call(Proposal, Sender, InitialState),
-        ?assertMatch({reply, {accept, 5, v}, _}, Result).
+        ?assertMatch({reply, {accepted, 5, v}, _}, Result).
 
     should_reply_reject_to_lower_round_than_promised() ->
         Sender = nil,

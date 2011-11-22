@@ -19,7 +19,10 @@ init([]) ->
     Acceptor = {acceptor, {acceptor, start_link, []}, 
     		permanent, 2000, worker, [acceptor]},
 
+    Learner = {learner, {learner, start_link, []}, 
+    		permanent, 2000, worker, [learner]},
+
 %    Proposer = {proposer, {proposer, start_link, []},
 %     		permanent, 2000, worker, [proposer]},
 
-    {ok, {?SUPFLAGS, [Acceptor]}}.
+    {ok, {?SUPFLAGS, [Acceptor, Learner]}}.

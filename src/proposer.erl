@@ -5,10 +5,11 @@
 
 %% API
 -export([
-	 start_link/2,
-	 deliver_promise/2,
-         deliver_accept/2
-	]).
+    start_link/2,
+    deliver_promise/2,
+    deliver_accept/2,
+    propose/1
+    ]).
 
 %% gen_fsm callbacks
 -export([init/1, 
@@ -31,6 +32,15 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+%% begins an election where the proposer will seek
+%% concensus on a value, proposing Proposal if no
+%% other value has already been accepted by a majority
+propose(Proposal) ->
+    % TODO: specifying a round here doesn't seem appropriate?
+    Round = 1, 
+    % TODO: is start_link appropriate? what about proc failures?
+    ?MODULE:start_link(Round, Proposal).
 
 start_link(Round, Value) ->
     gen_fsm:start_link(?MODULE, [Round, Value], []).

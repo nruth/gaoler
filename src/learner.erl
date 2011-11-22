@@ -1,55 +1,111 @@
 -module(learner).
--behaviour(gen_event).
+-behaviour(gen_server).
+-export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(MAJORITY, 3).
 -include_lib("decided_record.hrl").
+-include_lib("learner_state.hrl").
 
--export([init/1, handle_event/2, handle_call/2, handle_info/2, code_change/3,
-terminate/2]).
- 
-init([]) ->
-    {ok, []}.
+-export([get/0, await_result/1, register_callback/1]).
 
-%respond to value queries
-handle_event({get_learned, Sender}, #decided{value=Value}=State) ->
-    Sender ! {learned, Value},
-    {ok, State};
-handle_event({get_learned, Sender}, State) ->
-    Sender ! dontknow,
-    {ok, State};
+start_link() ->
+    gen_server:start_link({local, learner}, ?MODULE, [], []).
 
-% already decided and rebroadcast, do nothing
-handle_event({result, _Value}, #decided{}=State) ->
-    {ok, State};
-% already decided, so discard msgs
-handle_event({accepted, _Round, _Value}, #decided{}=State) -> 
-    {ok, State};
+%% Sends a blocking value query to the local learner 
+%% returns dontknow on timeout, i.e. assumes value was not learned
+get() ->
+    % only query the local node's registered learner;
+    % sidesteps consensus/asynch issues with remotes
+    gen_server:call(learner, get_learned).
 
-% short-circuit to decided value when notified of a result
-handle_event({result, Value}, _State) ->
+%% Register with local learner for callback on next decision of value
+%%  * Blocks until registration confirmed
+register_callback(Callback) ->
+    gen_server:call(learner, {register_callback, Callback}).
+
+%% Blocks awaiting result callback from a learner
+%%  * returns timeout when Timeout exceded
+await_result(Timeout) ->
+    receive
+        {result, _Value}=Result -> Result
+    after
+        Timeout -> timeout
+    end.
+
+% starts with empty data store
+init([]) -> {ok, #learner{}}.
+
+handle_call(get_learned, _From, State) ->
+    handle_get_learned(State);
+handle_call({register_callback, Callback}, From, State) ->
+    {reply, registered, State#learner{callbacks=[Callback|State#learner.callbacks]}}.
+
+handle_cast({result, Value}, State) -> 
+    handle_result_notice(Value, State);
+handle_cast({accepted, Round, Value}, State) -> 
+    handle_accepted_notice(Round, Value, State);
+handle_cast(stop, State) -> 
+    {stop, normal, State}.
+
+
+%%%===================================================================
+%%% Internals
+%%%===================================================================
+
+learn_value_and_update_state(Value, State) ->
     learners:broadcast_result(Value),
-    {ok, #decided{value = Value}};
-% counting accept votes
-handle_event({accepted, Round, Value}, State) ->
+    send_callbacks(Value, State#learner.callbacks),
+    % discard all callbacks, which have now been sent, 
+    % and discard vote counts, which has now been decided
+    State#learner{
+        accepts = [],
+        learned = #decided{value = Value},
+        callbacks = []
+    }.
+
+send_callbacks(Value, RegisteredCallbacks) ->
+    io:format("Value: ~p, Callbacks: ~p ~n", [Value, RegisteredCallbacks]),
+    [Pid ! {result, Value} || Pid <- RegisteredCallbacks],
+    ok.
+
+%% responds to value queries
+handle_get_learned(State) -> 
+    case State of 
+    #learner{learned=#decided{value=Value}} -> 
+        {reply, {learned, Value}, State};
+    _else -> 
+        {reply, unknown, State}
+    end.
+
+handle_result_notice(Value, State) ->
+    case State of
+        #learner{learned=#decided{}} ->
+            % already decided and rebroadcast, do nothing
+            {noreply, State};
+        _ -> % short-circuit to decided value when notified of a result
+            {noreply, learn_value_and_update_state(Value, State)}
+    end.
+
+handle_accepted_notice(_Round, _Value, #learner{learned=#decided{}}=State) ->
+    % already decided, so discard msgs
+    {noreply, State};
+handle_accepted_notice(Round, Value, #learner{accepts=Accepted}=State) ->
+    % counting accept votes
     Key = {Round, Value},
-    NewState = case lists:keyfind(Key, 1, State) of
+    NewState = case lists:keyfind(Key, 1, Accepted) of
         {Key, ?MAJORITY - 1} ->
-            learners:broadcast_result(Value),
-            #decided{value=Value};
+            learn_value_and_update_state(Value, State);
         {Key, AcceptedCount} ->
-            lists:keyreplace(Key, 1, State, {Key, AcceptedCount + 1});
+            NewAccepted = lists:keyreplace(Key, 1, Accepted, {Key, AcceptedCount + 1}),
+            State#learner{accepts=NewAccepted};
         false -> 
-            [{Key, 1}  | State]
+            NewAccepted = [{Key, 1}  | Accepted],
+            State#learner{accepts=NewAccepted}
     end,
-    {ok, NewState}.
+    {noreply, NewState}.
 
-handle_call(_, State) ->
-{ok, ok, State}.
-
-handle_info(_, State) ->
-{ok, State}.
-
-code_change(_OldVsn, State, _Extra) ->
-{ok, State}.
-
-terminate(_Reason, _State) ->
-ok.
+%%%===================================================================
+%%% Uninteresting gen_server boilerplate
+%%%===================================================================
+handle_info(_Info, State) -> {noreply, State}.
+terminate(_Reason, _State) -> ok.
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
