@@ -5,7 +5,7 @@
 -include_lib("decided_record.hrl").
 -include_lib("learner_state.hrl").
 
--export([get/0, await_result/1, register_callback/0]).
+-export([get/0, await_result/1, register_callback/1]).
 
 start_link() ->
     gen_server:start_link({local, learner}, ?MODULE, [], []).
@@ -19,8 +19,8 @@ get() ->
 
 %% Register with local learner for callback on next decision of value
 %%  * Blocks until registration confirmed
-register_callback() ->
-    gen_server:call(learner, register_callback).
+register_callback(Callback) ->
+    gen_server:call(learner, {register_callback, Callback}).
 
 %% Blocks awaiting result callback from a learner
 %%  * returns timeout when Timeout exceded
@@ -36,8 +36,8 @@ init([]) -> {ok, #learner{}}.
 
 handle_call(get_learned, _From, State) ->
     handle_get_learned(State);
-handle_call(register_callback, From, State) ->
-    {reply, registered, State#learner{callbacks=[From|State#learner.callbacks]}}.
+handle_call({register_callback, Callback}, From, State) ->
+    {reply, registered, State#learner{callbacks=[Callback|State#learner.callbacks]}}.
 
 handle_cast({result, Value}, State) -> 
     handle_result_notice(Value, State);
@@ -63,6 +63,7 @@ learn_value_and_update_state(Value, State) ->
     }.
 
 send_callbacks(Value, RegisteredCallbacks) ->
+    io:format("Value: ~p, Callbacks: ~p ~n", [Value, RegisteredCallbacks]),
     [Pid ! {result, Value} || Pid <- RegisteredCallbacks],
     ok.
 

@@ -94,12 +94,12 @@ behaviour_on_receving_decision_notification_test_() ->
 
     should_learn_the_value_sent_by_another_learner() ->
         Value = v,
-        ?assertEqual({ok, ?DECIDED(Value)}, learner:handle_cast({result, Value}, ?NOSTATE)),
-        ?assertEqual({ok, ?DECIDED(Value)}, learner:handle_cast({result, Value}, ?DECIDED(Value))).
+        ?assertEqual({noreply, ?DECIDED(Value)}, learner:handle_cast({result, Value}, ?NOSTATE)),
+        ?assertEqual({noreply, ?DECIDED(Value)}, learner:handle_cast({result, Value}, ?DECIDED(Value))).
 
     should_rebroadcast_learned_value_exactly_once() ->
         Value = foo,
-        {ok, NewState} = learner:handle_cast({result, Value}, ?NOSTATE),
+        {noreply, NewState} = learner:handle_cast({result, Value}, ?NOSTATE),
         ?assertEqual(1, meck:num_calls(learners, broadcast_result, [Value])),
         learner:handle_cast({result, Value}, NewState),
         ?assertEqual(1, meck:num_calls(learners, broadcast_result, [Value])).

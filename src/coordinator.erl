@@ -45,6 +45,6 @@ put(Proposal, Timeout) ->
 paxos(Proposal, Timeout) ->
     % register callback first to avoid race-condition
     % where paxos may finish before we insert our callback
-    registered = learner:register_callback(),
+    registered = learner:register_callback(self()),
     proposer:propose(Proposal),
     learner:await_result(Timeout).
