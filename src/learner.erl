@@ -86,7 +86,7 @@ handle_result_notice(Value, State) ->
 
 handle_accepted_notice(_Round, _Value, #learner{learned=#decided{}}=State) ->
     % already decided, so discard msgs
-    {ok, State};
+    {noreply, State};
 handle_accepted_notice(Round, Value, #learner{accepts=Accepted}=State) ->
     % counting accept votes
     Key = {Round, Value},
@@ -100,7 +100,7 @@ handle_accepted_notice(Round, Value, #learner{accepts=Accepted}=State) ->
             NewAccepted = [{Key, 1}  | Accepted],
             State#learner{accepts=NewAccepted}
     end,
-    {ok, NewState}.
+    {noreply, NewState}.
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate

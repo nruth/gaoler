@@ -7,7 +7,7 @@
 ]).
 
 broadcast_accept({reject, _Round}) -> ok;
-broadcast_accept({accept, _Round, _Value}=Accepted) ->
+broadcast_accept({accepted, _Round, _Value}=Accepted) ->
     gen_server:abcast(learner, Accepted).
 
 broadcast_result(Value) ->

@@ -22,18 +22,18 @@ behaviour_while_counting_accept_votes_test_() -> [
         Round = 100, Value = foo, AcceptCount = 0,
         InitialState = ?NOSTATE,
         Result = learner:handle_cast({accepted, Round, Value}, InitialState),
-        ?assertEqual({ok, ?STATE(Round, Value, AcceptCount + 1)}, Result).
+        ?assertEqual({noreply, ?STATE(Round, Value, AcceptCount + 1)}, Result).
 
     should_count_further_round_value_pair_acceptance_messages() ->
         Round = 1, Value = foo, AcceptCount = 1,
         InitialState = ?STATE(Round, Value, AcceptCount),
         Result = learner:handle_cast({accepted, Round, Value}, InitialState),
-        ?assertEqual({ok, ?STATE(Round, Value, AcceptCount + 1)}, Result).
+        ?assertEqual({noreply, ?STATE(Round, Value, AcceptCount + 1)}, Result).
 
     should_change_only_the_count_of_the_round_value_pair_accepted() ->
         Round = 1, AcceptCount = 1,
         InitialState = ?STATE(Round, first_value, AcceptCount),
-        {ok, NewState} = learner:handle_cast({accepted, Round, second_value}, InitialState),
+        {noreply, NewState} = learner:handle_cast({accepted, Round, second_value}, InitialState),
         ?assertEqual(1, proplists:get_value({Round, first_value}, NewState#learner.accepts)),
         ?assertEqual(1, proplists:get_value({Round, second_value}, NewState#learner.accepts)).
 
@@ -64,14 +64,14 @@ behaviour_on_reaching_quorum_test_() ->
         Round = 20, Value = foo, AcceptCount = 2,
         InitialState = ?STATE(Round, Value, AcceptCount),
         Result = learner:handle_cast({accepted, Round, Value}, InitialState),
-        ?assertEqual({ok, ?DECIDED(Value)}, Result).
+        ?assertEqual({noreply, ?DECIDED(Value)}, Result).
 
     should_not_change_state_if_accept_received_after_decision_made() ->
         Round = 20, Value = foo, AcceptCount = 2,
         InitialState = ?STATE(Round, Value, AcceptCount),
-        {ok, NewState1} = learner:handle_cast({accepted, Round, Value}, InitialState),
+        {noreply, NewState1} = learner:handle_cast({accepted, Round, Value}, InitialState),
         ?assertEqual(NewState1, ?DECIDED(Value)),
-        {ok, NewState2} = learner:handle_cast({accepted, Round, Value}, NewState1),
+        {noreply, NewState2} = learner:handle_cast({accepted, Round, Value}, NewState1),
         ?assertEqual(NewState2, ?DECIDED(Value)).
 
     should_perform_callbacks() ->
@@ -121,11 +121,11 @@ behaviour_on_receicing_a_learned_value_query_test_() ->[
 
     should_respond_unknown_before_value_learned() ->
         ?assertMatch(
-            {reply, dontknow, _},
+            {reply, unknown, _},
             learner:handle_call(get_learned, from, ?NOSTATE)
         ),
         ?assertMatch(
-            {reply, dontknow, _},
+            {reply, unknown, _},
             learner:handle_call(get_learned, from, ?STATE(1, v, 1))
         ).
 
