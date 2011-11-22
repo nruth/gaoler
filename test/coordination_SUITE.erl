@@ -11,7 +11,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Specify a list of all unit test functions
-all() -> [slave_test].
+all() -> [
+%          coordinator_no_proposed_value_test,
+          coordinator_put_new_proposal_test
+         ].
 
 init_per_suite(Config) ->
     % start four slaves
@@ -46,8 +49,13 @@ end_per_testcase(_TestCase, Config) ->
 %% test cases %%
 %%%%%%%%%%%%%%%%
 
-slave_test(Config) ->
-    ok.
+coordinator_no_proposed_value_test(Config) ->
+    unknown = coordinator:get().
+
+
+coordinator_put_new_proposal_test(Config) ->
+    Value = my_value,
+    {result, Value} = coordinator:put(Value, 1000).
    
 
 
