@@ -1,23 +1,26 @@
 -module(learner).
 -behaviour(gen_server).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -define(MAJORITY, 3).
 -include_lib("decided_record.hrl").
 -include_lib("learner_state.hrl").
 
 -export([get/0, await_result/1, register_callback/0]).
 
+start_link() ->
+    gen_server:start_link({local, learner}, ?MODULE, [], []).
+
 %% Sends a blocking value query to the local learner 
 %% returns dontknow on timeout, i.e. assumes value was not learned
 get() ->
     % only query the local node's registered learner;
     % sidesteps consensus/asynch issues with remotes
-    gen_event:call(learner, get_learned).
+    gen_server:call(learner, get_learned).
 
 %% Register with local learner for callback on next decision of value
 %%  * Blocks until registration confirmed
 register_callback() ->
-    gen_event:call(learner, register_callback).
+    gen_server:call(learner, register_callback).
 
 %% Blocks awaiting result callback from a learner
 %%  * returns timeout when Timeout exceded
@@ -69,7 +72,7 @@ handle_get_learned(State) ->
     #learner{learned=#decided{value=Value}} -> 
         {reply, {learned, Value}, State};
     _else -> 
-        {reply, dontknow, State}
+        {reply, unknown, State}
     end.
 
 handle_result_notice(Value, State) ->
