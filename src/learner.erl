@@ -79,9 +79,9 @@ handle_result_notice(Value, State) ->
     case State of
         #learner{learned=#decided{}} ->
             % already decided and rebroadcast, do nothing
-            {ok, State};
+            {noreply, State};
         _ -> % short-circuit to decided value when notified of a result
-            {ok, learn_value_and_update_state(Value, State)}
+            {noreply, learn_value_and_update_state(Value, State)}
     end.
 
 handle_accepted_notice(_Round, _Value, #learner{learned=#decided{}}=State) ->
