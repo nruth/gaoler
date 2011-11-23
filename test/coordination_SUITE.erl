@@ -12,7 +12,7 @@
 
 % Specify a list of all unit test functions
 all() -> [
-%          coordinator_no_proposed_value_test,
+          coordinator_no_proposed_value_test,
           coordinator_put_new_proposal_test
          ].
 
@@ -58,6 +58,7 @@ coordinator_put_new_proposal_test(Config) ->
     {result, Value} = coordinator:put(Value, 1000),
     Value = coordinator:get(),
     Value = coordinator:put(else, 1000).
+
    
 
 

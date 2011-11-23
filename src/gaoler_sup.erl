@@ -20,6 +20,8 @@
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
+% Start the frontend service gaoler and the internal paxos components 
+% (acceptor, learner) in a bundle called a house. 
 init([]) ->
     GaolerService = {gaoler, {gaoler, start_link, []},
 		     permanent, 2000, worker, [gaoler]},
