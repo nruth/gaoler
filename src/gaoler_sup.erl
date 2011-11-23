@@ -1,5 +1,4 @@
 -module(gaoler_sup).
-
 -behaviour(supervisor).
 
 %% API
@@ -22,6 +21,13 @@ start_link() ->
 
 % Start the frontend service gaoler and the internal paxos components 
 % (acceptor, learner) in a bundle called a house. 
+% 
+%          gaoler_sup
+%           /      \
+%     house_sup    gaoler
+%     /       \
+% acceptor   learner
+%
 init([]) ->
     GaolerService = {gaoler, {gaoler, start_link, []},
 		     permanent, 2000, worker, [gaoler]},
