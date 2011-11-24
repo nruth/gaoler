@@ -3,10 +3,11 @@
 -include_lib("persister.hrl").
 
 setup() ->
+    % make sure we always start with no file
+    file:delete(?LOGFILE),
     ok.
 
 teardown(_) ->
-    file:delete(?LOGFILE),
     ok.
 
 file_storage_test_() ->

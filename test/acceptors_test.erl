@@ -2,11 +2,13 @@
 -include_lib("eunit/include/eunit.hrl").
 
 setup() ->
-    Mods = [proposer, gaoler, learners],
+    Mods = [proposer, gaoler, learners, persister],
     meck:new(Mods),
     meck:expect(proposer, deliver_promise, 2, ok),
     meck:expect(proposer, deliver_accept, 2, ok),
     meck:expect(learners, broadcast_accept, 1, ok),
+    meck:expect(persister, remember_promise, 1, ok),
+    meck:expect(persister, remember_vote, 2, ok),
     meck:new(acceptor, [passthrough]),
     [acceptor|Mods].
     

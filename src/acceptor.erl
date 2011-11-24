@@ -3,8 +3,6 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, 
         terminate/2, code_change/3]).
 
-
-
 -include_lib("acceptor_state.hrl").
 
 %%%===================================================================
@@ -51,22 +49,24 @@ accept(Acceptor, Round, Value) ->
 %%% Implementation
 %%%===================================================================
 handle_prepare(Round, State) ->
-HighestPromise = max(Round, State#state.promised),
-NewState = State#state{promised = HighestPromise},
-{reply, {promised, HighestPromise, NewState#state.accepted}, NewState}.
+    HighestPromise = max(Round, State#state.promised),
+    NewState = State#state{promised = HighestPromise},
+    persister:remember_promise(HighestPromise),
+    {reply, {promised, HighestPromise, NewState#state.accepted}, NewState}.
 
 handle_accept(Round, Value, State) when Round >= State#state.promised ->
-{reply, {accepted, Round, Value}, State#state{accepted={Round, Value}}};
+    persister:remember_vote(Round, Value),
+    {reply, {accepted, Round, Value}, State#state{accepted={Round, Value}}};
 handle_accept(Round, _, State) -> 
-{reply, {reject, Round}, State}.
+    {reply, {reject, Round}, State}.
 
 init([]) -> {ok, #state{}}.
 
 % gen_server callback
 handle_call({prepare, Round}, _From, State) ->
-  handle_prepare(Round, State);
+    handle_prepare(Round, State);
 handle_call({accept, Round, Value}, _From, State) ->
-  handle_accept(Round, Value, State).
+    handle_accept(Round, Value, State).
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
