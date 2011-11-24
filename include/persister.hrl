@@ -1,0 +1,2 @@
+-record(state, {}).
+-define(LOGFILE, "logfile.log").
