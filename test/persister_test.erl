@@ -1,6 +1,7 @@
 -module(persister_test).
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("persister.hrl").
+-include_lib("acceptor_state.hrl").
 
 setup() ->
     % make sure we always start with no file
@@ -8,6 +9,8 @@ setup() ->
     ok.
 
 teardown(_) ->
+    % clean up last file
+    file:delete(?LOGFILE),
     ok.
 
 file_storage_test_() ->
@@ -18,7 +21,10 @@ file_storage_test_() ->
       fun append_promise_value_to_file_api/0,
       fun assert_that_promise_value_is_written_to_file/0,
       fun append_voted_value_to_file_api/0,
-      fun assert_that_round_and_value_is_written_to_file_on_vote/0
+      fun assert_that_round_and_value_is_written_to_file_on_vote/0,
+      fun when_no_file_available_return_empty_state/0,
+      fun when_file_exists_load_last_entries/0,
+      fun when_file_is_corrupted_start_with_blank_state/0
      ]
     }.
 
@@ -42,3 +48,20 @@ assert_that_round_and_value_is_written_to_file_on_vote() ->
     persister:remember_vote(Round, Value),
     {ok, Data} = file:consult(?LOGFILE),
     ?assertEqual([{accepted, Round, Value}], Data).
+
+when_no_file_available_return_empty_state() ->
+    ?assertEqual(#state{promised=0, accepted=no_value}, 
+                 persister:load_saved_state()). 
+
+when_file_exists_load_last_entries()->
+    Data = "{promised, 10}.\n{accepted, 9, value}.\n",
+    ok = file:write_file(?LOGFILE, Data, [append]),
+    LoadedState = persister:load_saved_state(),
+    ?assertEqual(#state{promised=10, accepted={9, value}}, LoadedState).
+
+when_file_is_corrupted_start_with_blank_state() ->
+    Data = "{promised....}",
+    ok = file:write_file(?LOGFILE, Data, [append]),
+    LoadedState = persister:load_saved_state(),
+    ?assertEqual(#state{promised=0, accepted=no_value}, LoadedState).
+        

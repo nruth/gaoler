@@ -60,7 +60,9 @@ handle_accept(Round, Value, State) when Round >= State#state.promised ->
 handle_accept(Round, _, State) -> 
     {reply, {reject, Round}, State}.
 
-init([]) -> {ok, #state{}}.
+init([]) -> 
+    StartState = persister:load_saved_state(),
+    {ok, StartState}.
 
 % gen_server callback
 handle_call({prepare, Round}, _From, State) ->
