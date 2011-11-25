@@ -56,7 +56,7 @@ deliver_accept(Proposer, AcceptorReply) ->
 init([Proposal]) ->
     Round = 1,
     acceptors:send_promise_requests(self(), Round),
-    {ok, awaiting_promises, #state{round=Round, value=Proposal}}.
+    {ok, awaiting_promises, #state{round=Round, value=#proposal{value = Proposal}}}.
 
 % on discovering a higher round has been promised
 awaiting_promises({promised, Round, _Accepted}, State) 

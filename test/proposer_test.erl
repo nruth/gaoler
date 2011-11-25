@@ -27,7 +27,46 @@ startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
 
     remembers_proposal() ->
         Proposal = foo,
-        ?assertMatch({ok, _, #state{value=Proposal}}, proposer:init([Proposal])).
+        {ok, _, State} = proposer:init([Proposal]),
+        Value = State#state.value#proposal.value,
+        ?assertEqual(Proposal, Value).
+
+
+
+awaiting_promises_transitions_test_() -> {foreach, fun setup/0, fun teardown/1, [
+    fun should_restart_prepare_with_higher_round_when_higher_round_promise_seen/0,
+    fun should_count_promises_for_same_round/0,
+    fun should_not_count_promises_for_different_round/0,
+    fun should_adopt_proposal_value_sent_with_promise/0
+]}.
+
+    should_restart_prepare_with_higher_round_when_higher_round_promise_seen() ->
+        Round = 1, Value = foo,
+        Highround = 4, HighroundValue = bar,
+        InitialState = #state{round = Round, value = #proposal{value = Value}},
+        Result = proposer:awaiting_promises({promised, Highround, HighroundValue}, InitialState),
+        {next_state, awaiting_promises, NewState=#state{}} = Result,
+        ?assertEqual(Highround + 1,NewState#state.round),
+        ?assertEqual(0 ,NewState#state.promises).
+
+    should_count_promises_for_same_round() -> ok.
+    should_not_count_promises_for_different_round() -> ok.
+    should_adopt_proposal_value_sent_with_promise() -> ok.
+
+    on_promise_containing_no_accepted_value_no_past_accept_added_test() ->
+        PrepareRound = 300,
+        AcceptedValue = no_value,
+        InitialState = ?PROMISES(1)?ROUND(PrepareRound)?VALUE(bar),
+        Result = proposer:awaiting_promises({promised, PrepareRound, AcceptedValue}, InitialState),
+        ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[]}}, Result).
+
+    on_promise_containing_accepted_value_past_accept_added_test() ->
+        PrepareRound = 300,
+        AcceptedValue = #accepted{round=10, value=foo},
+        InitialState = ?PROMISES(1)?ROUND(PrepareRound)?VALUE(bar),
+        Result = proposer:awaiting_promises({promised, PrepareRound, AcceptedValue}, InitialState),
+        ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[AcceptedValue]}}, Result).
+
 
 
 
@@ -54,19 +93,7 @@ first_promise_received_test() ->
                   InitialState),
     ?assertMatch({next_state, awaiting_promises, ?PROMISES(1)}, Result).
 
-on_promise_containing_no_accepted_value_no_past_accept_added_test() ->
-    PrepareRound = 300,
-    AcceptedValue = no_value,
-    InitialState = ?PROMISES(1)?ROUND(PrepareRound)?VALUE(bar),
-    Result = proposer:awaiting_promises({promised, PrepareRound, AcceptedValue}, InitialState),
-    ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[]}}, Result).
 
-on_promise_containing_accepted_value_past_accept_added_test() ->
-    PrepareRound = 300,
-    AcceptedValue = #accepted{round=10, value=foo},
-    InitialState = ?PROMISES(1)?ROUND(PrepareRound)?VALUE(bar),
-    Result = proposer:awaiting_promises({promised, PrepareRound, AcceptedValue}, InitialState),
-    ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[AcceptedValue]}}, Result).
 
 %% Testing proposer accept request broadcasts
 promise_quorum_broadcast_test_() -> 
