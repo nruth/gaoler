@@ -109,15 +109,14 @@ awaiting_accepts({rejected, Round}, #state{round=Round}=State) ->
 
 awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
     NewState = State#state{accepts = State#state.accepts + 1},
-    {next_state, awaiting_accepts, NewState};
-    %     case NewState#state.accepts >= ?MAJORITY of
-    % false ->
-    %     {next_state, awaiting_accepts, NewState};
-    % true ->
-    %     % deliver result to application (client) 
-    %     gaoler:deliver(State#state.value),
-    %     {next_state, accepted, NewState}
-    %     end;
+    case NewState#state.accepts >= ?MAJORITY of
+    false ->
+        {next_state, awaiting_accepts, NewState};
+    true ->
+        % deliver result to application (client) 
+        learners:broadcast_result(State#state.value#proposal.value),
+        {stop, learned, NewState}
+    end;
 awaiting_accepts(_, State) ->
     {next_state, awaiting_accepts, State}.
 
