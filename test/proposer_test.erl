@@ -8,6 +8,30 @@
 -define(ROUND(N),   #state{round=N}).
 -define(VALUE(V),   #state{value=V}).
 
+
+startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
+    fun awaiting_promises/0,
+    fun starts_with_round_1/0,
+    fun starts_with_0_promises/0,
+    fun remembers_proposal/0
+]}.
+
+    awaiting_promises() ->
+        ?assertMatch({ok, awaiting_promises, _}, proposer:init([foo])).
+
+    starts_with_round_1() ->
+        ?assertMatch({ok, _, #state{round=1}}, proposer:init([foo])).
+
+    starts_with_0_promises() ->
+        ?assertMatch({ok, _, #state{promises=0}}, proposer:init([foo])).
+
+    remembers_proposal() ->
+        Proposal = foo,
+        ?assertMatch({ok, _, #state{value=Proposal}}, proposer:init([Proposal])).
+
+
+
+
 %% Meck stub modules, used to enable decoupled unit tests
 setup() ->
     Mods = [acceptors, gaoler],
@@ -27,7 +51,7 @@ first_promise_received_test() ->
     AcceptedValue = no_value,
     InitialState = ?PROMISES(0)?ROUND(Round),    
     Result = proposer:awaiting_promises({promised, Round, AcceptedValue}, 
-					InitialState),
+                  InitialState),
     ?assertMatch({next_state, awaiting_promises, ?PROMISES(1)}, Result).
 
 on_promise_containing_no_accepted_value_no_past_accept_added_test() ->
@@ -58,7 +82,7 @@ on_promise_quorum_state_moves_to_accepting() ->
     AcceptedValue = no_value,
     InitialState = ?PROMISES(2)?ROUND(Round),
     Result = proposer:awaiting_promises({promised, Round, AcceptedValue},
-					InitialState),
+                  InitialState),
     ?assertMatch({next_state, awaiting_accepts, ?PROMISES(3)}, Result).
 
 on_promise_quorum_proposer_broadcasts_accept() ->
@@ -66,7 +90,7 @@ on_promise_quorum_proposer_broadcasts_accept() ->
     AcceptedValue = no_value,
     InitialState = ?PROMISES(2)?ROUND(Round)?VALUE(foo),
     proposer:awaiting_promises({promised, Round, AcceptedValue}, 
-			       InitialState),
+                 InitialState),
     ?assert(meck:called(acceptors, send_accept_requests, '_')).
 
 
@@ -81,9 +105,8 @@ proposer_broadcast_prepare_test_() ->
 
 % initialising proposer broadcasts prepare
 on_init_proposer_broadcasts_prepare() ->
-    Round = 1,
-    proposer:init([Round, val]),
-    ?assert(meck:called(acceptors, send_promise_requests, [self(), Round])).
+    proposer:init([val]),
+    ?assert(meck:called(acceptors, send_promise_requests, [self(), _Round=1])).
 
 % sad case: someone else has been promised a higher round
 on_higher_promise_received_proposer_increments_round() ->
@@ -91,7 +114,7 @@ on_higher_promise_received_proposer_increments_round() ->
     AcceptedValue = no_value,
     InitialState = ?PROMISES(0)?ROUND(Round),
     Result = proposer:awaiting_promises({promised, 100, AcceptedValue}, 
-					InitialState),
+                  InitialState),
     ?assertMatch({next_state, awaiting_promises, ?ROUND(101)}, Result).
 
 
@@ -125,6 +148,6 @@ on_accept_quorum_state_moves_to_accepted() ->
     Value = 1,
     InitialState = ?PROMISES(3)?ACCEPTS(2)?ROUND(Round)?VALUE(Value),
     Result = {_, _, AcceptedState} = 
-	proposer:awaiting_accepts({accepted, Round}, InitialState),
+  proposer:awaiting_accepts({accepted, Round}, InitialState),
     ?assertMatch({next_state, accepted, _}, Result),
     ?assertEqual(InitialState?ACCEPTS(3), AcceptedState).

@@ -5,7 +5,7 @@
 
 %% API
 -export([
-    start_link/2,
+    start_link/1,
     deliver_promise/2,
     deliver_accept/2,
     propose/1
@@ -37,13 +37,11 @@
 %% concensus on a value, proposing Proposal if no
 %% other value has already been accepted by a majority
 propose(Proposal) ->
-    % TODO: specifying a round here doesn't seem appropriate?
-    Round = 1, 
     % TODO: is start_link appropriate? what about proc failures?
-    ?MODULE:start_link(Round, Proposal).
+    ?MODULE:start_link(Proposal).
 
-start_link(Round, Value) ->
-    gen_fsm:start_link(?MODULE, [Round, Value], []).
+start_link(Proposal) ->
+    gen_fsm:start_link(?MODULE, [Proposal], []).
 
 deliver_promise(Proposer, AcceptorReply) ->
     gen_fsm:send_event(Proposer, AcceptorReply).
@@ -55,9 +53,10 @@ deliver_accept(Proposer, AcceptorReply) ->
 %%% gen_fsm callbacks
 %%%===================================================================
 
-init([Round, Value]) ->
+init([Proposal]) ->
+    Round = 1,
     acceptors:send_promise_requests(self(), Round),
-    {ok, awaiting_promises, #state{round=Round, value=Value}}.
+    {ok, awaiting_promises, #state{round=Round, value=Proposal}}.
 
 % on discovering a higher round has been promised
 awaiting_promises({promised, Round, _Accepted}, State) 
