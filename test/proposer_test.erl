@@ -165,7 +165,28 @@ awaiting_accepts_count_reject_test_() -> {foreach, fun setup/0, fun teardown/1, 
         ?assertEqual(0, Rejects).
 
 awaiting_accepts_reject_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
+    fun should_transition_to_prepare_if_reject_quorum_reached/0,
+    fun should_broadcast_new_prepare_request_on_reject_quorum/0
 ]}.
+
+    should_transition_to_prepare_if_reject_quorum_reached() ->
+        Proposal = #proposal{value = v},
+        Round = 10,
+        ?assertMatch(
+            {next_state, awaiting_promises, #state{
+                round = 12,
+                promises = 0,
+                value = Proposal
+            }},
+            proposer:awaiting_accepts(
+                {rejected, Round}, #state{rejects = 2, round = Round, value = Proposal}
+            )
+        ).
+
+    should_broadcast_new_prepare_request_on_reject_quorum() ->
+        proposer:awaiting_accepts({rejected, 10}, #state{rejects = 2, round = 10}),
+        ?assert(meck:called(acceptors, send_promise_requests, [self(), _Round=12])).
+
 
 awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
 ]}.

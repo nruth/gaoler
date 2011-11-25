@@ -97,9 +97,15 @@ loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) ->
 loop_until_promise_quorum(State) -> % keep waiting
     {next_state, awaiting_promises, State}.
 
+
+
+awaiting_accepts({rejected, Round}, #state{round = Round, rejects = 2}=State) ->
+    RetryRound = Round + 2,
+    acceptors:send_promise_requests(self(), RetryRound),
+    {next_state, awaiting_promises, State#state{round = RetryRound, promises = 0}};
+
 awaiting_accepts({rejected, Round}, #state{round=Round}=State) ->
-    NewState = State#state{rejects = State#state.rejects + 1},
-    {next_state, awaiting_accepts, NewState};
+    {next_state, awaiting_accepts, State#state{rejects = State#state.rejects + 1}};
 
 awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
     NewState = State#state{accepts = State#state.accepts + 1},
