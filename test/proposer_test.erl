@@ -84,6 +84,28 @@ awaiting_promises_transitions_test_() -> {foreach, fun setup/0, fun teardown/1, 
                 }
             }, NewState).
     
+
+
+awaiting_promises_prepare_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
+    fun should_transition_to_awaiting_accepts_when_2_promises_and_promise_for_round_received/0
+]}.
+
+    should_transition_to_awaiting_accepts_when_2_promises_and_promise_for_round_received() ->
+        Proposal = #proposal{value = v},
+        InitialState = #state{round = 10, promises = 2, value = Proposal},
+        ?assertMatch(
+            {next_state, awaiting_accepts, #state{
+                round = 10,
+                accepts = 0,
+                rejects = 0,
+                value = Proposal
+            }},
+            proposer:awaiting_promises(
+                {promised, InitialState#state.round, no_value}, InitialState
+            )
+        ).
+
+
 %% Meck stub modules, used to enable decoupled unit tests
 setup() ->
     Mods = [acceptors, gaoler],
