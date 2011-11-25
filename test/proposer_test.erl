@@ -134,7 +134,63 @@ awaiting_promises_prepare_quorum_test_() -> {foreach, fun setup/0, fun teardown/
 %%% Awaiting Accepts state tests
 %%% =============================
 
+awaiting_accepts_count_accept_test_() -> {foreach, fun setup/0, fun teardown/1, [
+    fun should_increment_accepts_when_accept_for_round_received/0,
+    fun should_not_increment_accepts_when_accept_for_another_round_received/0
+]}.
 
+    should_increment_accepts_when_accept_for_round_received() ->
+        {next_state, awaiting_accepts, #state{round = 10, accepts = Accepts}} = 
+            proposer:awaiting_accepts({accepted, 10}, #state{round = 10}),
+        ?assertEqual(1, Accepts).
+
+    should_not_increment_accepts_when_accept_for_another_round_received() ->
+        {next_state, awaiting_accepts, #state{round = 10, accepts = Accepts}} = 
+            proposer:awaiting_accepts({accepted, 8}, #state{round = 10}),
+        ?assertEqual(0, Accepts).
+
+awaiting_accepts_count_reject_test_() -> {foreach, fun setup/0, fun teardown/1, [
+    fun should_increment_rejects_when_reject_for_round_received/0,
+    fun should_not_increment_rejects_when_reject_for_another_round_received/0
+]}.
+
+    should_increment_rejects_when_reject_for_round_received() ->
+        {next_state, awaiting_accepts, #state{round = 10, rejects = Rejects}} = 
+            proposer:awaiting_accepts({rejected, 10}, #state{round = 10}),
+        ?assertEqual(1, Rejects).
+
+    should_not_increment_rejects_when_reject_for_another_round_received() ->
+        {next_state, awaiting_accepts, #state{round = 10, rejects = Rejects}} = 
+            proposer:awaiting_accepts({rejected, 8}, #state{round = 10}),
+        ?assertEqual(0, Rejects).
+
+awaiting_accepts_reject_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
+]}.
+
+awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
+]}.
+
+% first_accept_received() ->
+%     Round = 1,
+%     InitialState = ?PROMISES(3)?ACCEPTS(0)?ROUND(Round)?VALUE(foo),
+%     Result = proposer:awaiting_accepts({accepted, Round}, InitialState),
+%     ?assertMatch({next_state, awaiting_accepts, ?ACCEPTS(1)}, Result).
+% 
+% on_accept_quorum_proposer_delivers_value() ->
+%     Round = 1,
+%     Value = foo,
+%     InitialState = ?PROMISES(3)?ACCEPTS(2)?ROUND(Round)?VALUE(Value),
+%     proposer:awaiting_accepts({accepted, Round}, InitialState),
+%     ?assert(meck:called(gaoler, deliver, [Value])).
+% 
+% on_accept_quorum_state_moves_to_accepted() ->
+%     Round = 1,
+%     Value = 1,
+%     InitialState = ?PROMISES(3)?ACCEPTS(2)?ROUND(Round)?VALUE(Value),
+%     Result = {_, _, AcceptedState} = 
+%   proposer:awaiting_accepts({accepted, Round}, InitialState),
+%     ?assertMatch({next_state, accepted, _}, Result),
+%     ?assertEqual(InitialState?ACCEPTS(3), AcceptedState).
 
 
 %%% =============================
@@ -167,24 +223,4 @@ teardown(Mods) ->
 %      ]
 %     }.
 % 
-% first_accept_received() ->
-%     Round = 1,
-%     InitialState = ?PROMISES(3)?ACCEPTS(0)?ROUND(Round)?VALUE(foo),
-%     Result = proposer:awaiting_accepts({accepted, Round}, InitialState),
-%     ?assertMatch({next_state, awaiting_accepts, ?ACCEPTS(1)}, Result).
-% 
-% on_accept_quorum_proposer_delivers_value() ->
-%     Round = 1,
-%     Value = foo,
-%     InitialState = ?PROMISES(3)?ACCEPTS(2)?ROUND(Round)?VALUE(Value),
-%     proposer:awaiting_accepts({accepted, Round}, InitialState),
-%     ?assert(meck:called(gaoler, deliver, [Value])).
-% 
-% on_accept_quorum_state_moves_to_accepted() ->
-%     Round = 1,
-%     Value = 1,
-%     InitialState = ?PROMISES(3)?ACCEPTS(2)?ROUND(Round)?VALUE(Value),
-%     Result = {_, _, AcceptedState} = 
-%   proposer:awaiting_accepts({accepted, Round}, InitialState),
-%     ?assertMatch({next_state, accepted, _}, Result),
-%     ?assertEqual(InitialState?ACCEPTS(3), AcceptedState).
+
