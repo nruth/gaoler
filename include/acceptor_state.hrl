@@ -1,4 +1,8 @@
 -record(state, {
-  promised=0,
+  elections = []
+}).
+
+-record(election, {
+  promised = 0,
   accepted = no_value
 }).

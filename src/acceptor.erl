@@ -3,8 +3,6 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, 
         terminate/2, code_change/3]).
 
-
-
 -include_lib("acceptor_state.hrl").
 
 %%%===================================================================
@@ -50,23 +48,71 @@ accept(Acceptor, Round, Value) ->
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
-handle_prepare(Round, State) ->
-HighestPromise = max(Round, State#state.promised),
-NewState = State#state{promised = HighestPromise},
-{reply, {promised, HighestPromise, NewState#state.accepted}, NewState}.
+%% handle_prepare(Round, State) ->
+%%     HighestPromise = max(Round, State#state.promised),
+%%     NewState = State#state{promised = HighestPromise},
+%%     {reply, {promised, HighestPromise, NewState#state.accepted}, NewState}.
 
-handle_accept(Round, Value, State) when Round >= State#state.promised ->
-{reply, {accepted, Round, Value}, State#state{accepted={Round, Value}}};
-handle_accept(Round, _, State) -> 
-{reply, {reject, Round}, State}.
+handle_prepare({ElectionId, Round}, State) ->
+    case lists:keyfind(ElectionId, 1, State#state.elections) of
+        {ElectionId, _Value}=FoundElection ->
+            HighestPromise = max(Round, 
+                                 FoundElection#election.promised),
+            NewElection = FoundElection#election{promised = HighestPromise},
+            NewState = lists:keyreplace(ElectionId, 1, State#state.elections,
+                                        {ElectionId, NewElection}),
+            {reply, {promised, Round, NewElection#election.accepted}, NewState};
+        false ->
+            NewElection = #election{promised = Round},
+            NewState = add_new_election(ElectionId, NewElection, State),
+            {reply, {promised, Round, NewElection#election.accepted}, NewState}
+    end.    
+
+%% handle_accept(Round, Value, State) when Round >= State#state.promised ->
+%%     {reply, {accepted, Round, Value}, State#state{accepted={Round, Value}}};
+%% handle_accept(Round, _, State) -> 
+%%     {reply, {reject, Round}, State}.    
+
+handle_accept({ElectionId, Round}, Value, State) ->
+    {Reply, NextState} = 
+        case lists:keyfind(ElectionId, 1, State#state.elections) of
+            {ElectionId, ElectionRecord} ->
+                case handle_accept_for_election(Round, Value, ElectionRecord) of
+                    {accepted, NewElection} ->
+                        NewState = lists:keyreplace(ElectionId, 1, 
+                                                    State#state.elections,
+                                                    {ElectionId, NewElection}),
+                        {{accepted, Round, Value}, NewState};
+                    reject ->
+                        {{reject, Round}, State}
+                end;
+            false ->
+                NewElection = #election{promised = Round,
+                                        accepted = {Round, Value}},
+                NewState = add_new_election(ElectionId, NewElection, State),
+                {{accepted, Round, Value}, NewState}
+        end,
+    {reply, Reply, NextState}.
+
+handle_accept_for_election(Round, Value, Election) 
+  when Round >= Election#election.promised ->
+    NewElection = Election#election{promised = Round, 
+                                    accepted = {Round, Value}},
+    {accepted, NewElection};
+handle_accept_for_election(_, _, _) ->
+    reject.
+
+add_new_election(ElectionId, NewElection, State) ->
+    State#state{elections = [{ElectionId, NewElection}|
+                             State#state.elections]}.
 
 init([]) -> {ok, #state{}}.
 
 % gen_server callback
 handle_call({prepare, Round}, _From, State) ->
-  handle_prepare(Round, State);
+  handle_prepare({1, Round}, State);
 handle_call({accept, Round, Value}, _From, State) ->
-  handle_accept(Round, Value, State).
+  handle_accept({1, Round}, Value, State).
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
