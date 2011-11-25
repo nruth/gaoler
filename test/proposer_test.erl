@@ -9,11 +9,15 @@
 -define(VALUE(V),   #state{value=#proposal{value=V}}).
 
 
+%%% =============================
+%%% Startup tests
+%%% =============================
 startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
     fun awaiting_promises/0,
     fun starts_with_round_1/0,
     fun starts_with_0_promises/0,
-    fun remembers_proposal/0
+    fun remembers_proposal/0,
+    fun should_broadcast_prepare_request/0
 ]}.
 
     awaiting_promises() ->
@@ -31,7 +35,14 @@ startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
         Value = State#state.value#proposal.value,
         ?assertEqual(Proposal, Value).
 
+    should_broadcast_prepare_request() ->
+        proposer:init([val]),
+        ?assert(meck:called(acceptors, send_promise_requests, [self(), _Round=1])).
 
+
+%%% =============================
+%%% Awaiting Promises state tests
+%%% =============================
 
 awaiting_promises_higher_promise_seen_test_() -> {foreach, fun setup/0, fun teardown/1, [
     fun should_restart_prepare_with_higher_round_when_higher_round_promise_seen/0
@@ -89,7 +100,8 @@ awaiting_promises_count_promise_and_check_proposal_vs_past_accepts_test_() -> [
 
 
 awaiting_promises_prepare_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
-    fun should_transition_to_awaiting_accepts_when_2_promises_and_promise_for_round_received/0
+    fun should_transition_to_awaiting_accepts_when_2_promises_and_promise_for_round_received/0,
+    fun should_broadcast_accept_request_on_promise_quorum/0
 ]}.
 
     should_transition_to_awaiting_accepts_when_2_promises_and_promise_for_round_received() ->
@@ -107,6 +119,27 @@ awaiting_promises_prepare_quorum_test_() -> {foreach, fun setup/0, fun teardown/
             )
         ).
 
+    should_broadcast_accept_request_on_promise_quorum() ->
+        Round = 1,
+        InitialState = ?PROMISES(2)?ROUND(Round)?VALUE(foo),
+        proposer:awaiting_promises({promised, Round, no_value},
+                     InitialState),
+        ?assert(meck:called(acceptors, send_accept_requests, '_')).
+
+
+
+
+
+%%% =============================
+%%% Awaiting Accepts state tests
+%%% =============================
+
+
+
+
+%%% =============================
+%%% Test Helpers
+%%% =============================
 
 %% Meck stub modules, used to enable decoupled unit tests
 setup() ->
@@ -120,63 +153,6 @@ setup() ->
 teardown(Mods) ->
     meck:unload(Mods).
 
-
-% happy case: no other proposers and round 1 succeeds
-first_promise_received_test() ->
-    Round = 1,
-    InitialState = ?PROMISES(0)?ROUND(Round),    
-    Result = proposer:awaiting_promises({promised, Round, no_value}, 
-                  InitialState),
-    ?assertMatch({next_state, awaiting_promises, ?PROMISES(1)}, Result).
-
-
-
-%% Testing proposer accept request broadcasts
-promise_quorum_broadcast_test_() -> 
-    {foreach, 
-     fun setup/0, fun teardown/1, 
-     [  
-        fun on_promise_quorum_state_moves_to_accepting/0, 
-        fun on_promise_quorum_proposer_broadcasts_accept/0
-     ]}.
-
-on_promise_quorum_state_moves_to_accepting() ->
-    Round = 1,
-    InitialState = ?PROMISES(2)?ROUND(Round),
-    Result = proposer:awaiting_promises({promised, Round, no_value},
-                  InitialState),
-    ?assertMatch({next_state, awaiting_accepts, ?PROMISES(3)}, Result).
-
-on_promise_quorum_proposer_broadcasts_accept() ->
-    Round = 1,
-    InitialState = ?PROMISES(2)?ROUND(Round)?VALUE(foo),
-    proposer:awaiting_promises({promised, Round, no_value},
-                 InitialState),
-    ?assert(meck:called(acceptors, send_accept_requests, '_')).
-
-
-%% Testing proposer prepare request broadcasts
-proposer_broadcast_prepare_test_() -> 
-    {foreach, 
-     fun setup/0, fun teardown/1, 
-     [  
-        fun on_init_proposer_broadcasts_prepare/0, 
-        fun on_higher_promise_received_proposer_increments_round/0
-     ]}.
-
-% initialising proposer broadcasts prepare
-on_init_proposer_broadcasts_prepare() ->
-    proposer:init([val]),
-    ?assert(meck:called(acceptors, send_promise_requests, [self(), _Round=1])).
-
-% sad case: someone else has been promised a higher round
-on_higher_promise_received_proposer_increments_round() ->
-    Round = 1,
-    AcceptedValue = no_value,
-    InitialState = ?PROMISES(0)?ROUND(Round),
-    Result = proposer:awaiting_promises({promised, 100, AcceptedValue}, 
-                  InitialState),
-    ?assertMatch({next_state, awaiting_promises, ?ROUND(101)}, Result).
 
 % 
 % %% TestCase: awaiting_accepts state
