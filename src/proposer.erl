@@ -72,12 +72,15 @@ awaiting_promises({promised, PromisedRound, no_value}, #state{round = PromisedRo
     loop_until_promise_quorum(State#state{promises = State#state.promises + 1});
 
 % on receiving a promise with accompanying previous-vote data
-awaiting_promises( {promised, PromisedRound, #accepted{}=Accepted}, 
+awaiting_promises( {promised, PromisedRound, {AcceptedRound, AcceptedValue}}, 
     #state{round=PromisedRound}=State) -> 
     loop_until_promise_quorum(
         State#state{ 
-            promises = State#state.promises + 1,
-            past_accepts = [ Accepted | State#state.past_accepts ]
+            value = case AcceptedRound > State#state.value#proposal.accepted_in_round of
+                true -> #proposal{accepted_in_round = AcceptedRound, value=AcceptedValue} ;
+                false -> State#state.value
+            end,
+            promises = State#state.promises + 1
         }
     );
 
@@ -85,32 +88,14 @@ awaiting_promises( {promised, PromisedRound, #accepted{}=Accepted},
 awaiting_promises(_, State) ->
     {next_state, awaiting_promises, State}.
 
-loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) -> %quorum
-    % if promises carried accepted values: propose the one accepted in the highest round
-    % else when no accepted values sent: propose a new value
-    ProposalValue = case highest_round_accepted_value(State#state.past_accepts) of 
-        #accepted{value=HighestRoundAcceptedValue} -> 
-            HighestRoundAcceptedValue;
-        no_value -> 
-            State#state.value
-    end,
-    acceptors:send_accept_requests(self(), State#state.round, ProposalValue),
-    % move to the next state
+% majority reached
+loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) ->
+    Proposal = State#state.value#proposal.value,
+    acceptors:send_accept_requests(self(), State#state.round, Proposal),
     {next_state, awaiting_accepts, State};
 
 loop_until_promise_quorum(State) -> % keep waiting
     {next_state, awaiting_promises, State}.
-
-highest_round_accepted_value([]) -> no_value;
-highest_round_accepted_value([A]) -> A;
-highest_round_accepted_value(PastAccepts) ->
-    [HighestValue|_] = lists:sort(
-        fun (#accepted{}=A, #accepted{}=B) ->
-            A#accepted.round =< B#accepted.round 
-        end,
-        PastAccepts
-    ),
-    HighestValue.
 
 awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
     % collect accept
