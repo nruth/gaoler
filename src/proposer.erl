@@ -74,15 +74,14 @@ awaiting_promises({promised, PromisedRound, no_value}, #state{round = PromisedRo
 % on receiving a promise with accompanying previous-vote data
 awaiting_promises( {promised, PromisedRound, {AcceptedRound, AcceptedValue}}, 
     #state{round=PromisedRound}=State) -> 
-    loop_until_promise_quorum(
-        State#state{ 
-            value = case AcceptedRound > State#state.value#proposal.accepted_in_round of
-                true -> #proposal{accepted_in_round = AcceptedRound, value=AcceptedValue} ;
-                false -> State#state.value
-            end,
-            promises = State#state.promises + 1
-        }
-    );
+    NewState = State#state{ 
+        value = case AcceptedRound > State#state.value#proposal.accepted_in_round of
+            true -> #proposal{accepted_in_round = AcceptedRound, value=AcceptedValue} ;
+            false -> State#state.value
+        end,
+        promises = State#state.promises + 1
+    },
+    loop_until_promise_quorum(NewState);
 
 % on receiving unknown message
 awaiting_promises(_, State) ->
