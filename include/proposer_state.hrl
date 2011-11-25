@@ -3,11 +3,10 @@
     value = undefined
 }).
 
--record(state, 
-	{
-	  round     = undefined,
-	  value     = #proposal{},
-	  promises  = 0,
-	  past_accepts = [], % TODO: remove
-	  accepts   = 0
-	}).
+-record(state, {
+    round     = undefined,
+    value     = #proposal{},
+    promises  = 0,
+    accepts   = 0,
+    rejects = 0
+}).
