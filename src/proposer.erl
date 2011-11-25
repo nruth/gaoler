@@ -56,24 +56,24 @@ deliver_accept(Proposer, AcceptorReply) ->
 init([Proposal]) ->
     Round = 1,
     acceptors:send_promise_requests(self(), Round),
-    {ok, awaiting_promises, #state{round=Round, value=#proposal{value = Proposal}}}.
+    {ok, awaiting_promises, #state{round = Round, value=#proposal{value = Proposal}}}.
 
 % on discovering a higher round has been promised
-awaiting_promises({promised, Round, _Accepted}, State) 
-    when Round > State#state.round -> % restart with Round+1 
-    NextRound = Round + 1,
+awaiting_promises({promised, PromisedRound, _}, State) 
+    when PromisedRound > State#state.round -> % restart with Round+1 
+    NextRound = PromisedRound + 1,
     NewState = State#state{round = NextRound, promises = 0},
     % TODO: add exponential backoff
     acceptors:send_promise_requests(self(), NextRound),
     {next_state, awaiting_promises, NewState};
         
 % on receiving a promise without past-vote data
-awaiting_promises({promised, Round, no_value}, #state{round=Round}=State) ->
+awaiting_promises({promised, PromisedRound, no_value}, #state{round = PromisedRound}=State) ->
     loop_until_promise_quorum(State#state{promises = State#state.promises + 1});
 
 % on receiving a promise with accompanying previous-vote data
-awaiting_promises( {promised, Round, #accepted{}=Accepted}, 
-    #state{round=Round}=State) -> 
+awaiting_promises( {promised, PromisedRound, #accepted{}=Accepted}, 
+    #state{round=PromisedRound}=State) -> 
     loop_until_promise_quorum(
         State#state{ 
             promises = State#state.promises + 1,
