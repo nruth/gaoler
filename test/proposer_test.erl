@@ -17,26 +17,31 @@ startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
     fun starts_with_round_1/0,
     fun starts_with_0_promises/0,
     fun remembers_proposal/0,
+    fun remembers_reply_to_pid/0,
     fun should_broadcast_prepare_request/0
 ]}.
 
     awaiting_promises() ->
-        ?assertMatch({ok, awaiting_promises, _}, proposer:init([foo])).
+        ?assertMatch({ok, awaiting_promises, _}, proposer:init([foo, self()])).
 
     starts_with_round_1() ->
-        ?assertMatch({ok, _, #state{round=1}}, proposer:init([foo])).
+        ?assertMatch({ok, _, #state{round=1}}, proposer:init([foo, self()])).
 
     starts_with_0_promises() ->
-        ?assertMatch({ok, _, #state{promises=0}}, proposer:init([foo])).
+        ?assertMatch({ok, _, #state{promises=0}}, proposer:init([foo, self()])).
 
     remembers_proposal() ->
         Proposal = foo,
-        {ok, _, State} = proposer:init([Proposal]),
+        {ok, _, State} = proposer:init([Proposal, self()]),
         Value = State#state.value#proposal.value,
         ?assertEqual(Proposal, Value).
 
+    remembers_reply_to_pid() ->
+        ReplyTo = self(),
+        ?assertMatch({ok, _, #state{reply_to=ReplyTo}}, proposer:init([foo, ReplyTo])).
+
     should_broadcast_prepare_request() ->
-        proposer:init([val]),
+        proposer:init([val, self()]),
         ?assert(meck:called(acceptors, send_promise_requests, [self(), _Round=1])).
 
 
@@ -128,8 +133,6 @@ awaiting_promises_prepare_quorum_test_() -> {foreach, fun setup/0, fun teardown/
 
 
 
-
-
 %%% =============================
 %%% Awaiting Accepts state tests
 %%% =============================
@@ -199,20 +202,26 @@ should_halt_when_accept_quorum_reached() ->
     ?assertMatch(
         {stop, learned, _},
         proposer:awaiting_accepts(
-            {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal}
+            {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
         )
     ).
 
 should_broadcast_result_notification_to_learners_on_accept_quorum() ->
     Proposal = #proposal{value = v},
     proposer:awaiting_accepts(
-        {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal}
+        {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
     ),
     ?assert(meck:called(learners, broadcast_result, [v])).
 
 
 should_notify_client_of_result() ->
-    1 = 2.
+    Proposal = #proposal{value = v},
+    ReplyTo = nspy:mock(),
+    proposer:awaiting_accepts(
+        {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal, reply_to=ReplyTo}
+    ),
+    timer:sleep(2),
+    nspy:assert_message_received(ReplyTo, {learned, v}).
 
 %%% =============================
 %%% Test Helpers

@@ -8,5 +8,6 @@
     value     = #proposal{},
     promises  = 0,
     accepts   = 0,
-    rejects = 0
+    rejects = 0,
+    reply_to = undefined
 }).

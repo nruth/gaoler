@@ -5,7 +5,7 @@
 
 %% API
 -export([
-    start_link/1,
+    start_link/2,
     deliver_promise/2,
     deliver_accept/2,
     propose/1
@@ -38,10 +38,10 @@
 %% other value has already been accepted by a majority
 propose(Proposal) ->
     % TODO: is start_link appropriate? what about proc failures?
-    ?MODULE:start_link(Proposal).
+    ?MODULE:start_link(Proposal, self()).
 
-start_link(Proposal) ->
-    gen_fsm:start_link(?MODULE, [Proposal], []).
+start_link(Proposal, ReplyPid) ->
+    gen_fsm:start_link(?MODULE, [Proposal, ReplyPid], []).
 
 deliver_promise(Proposer, AcceptorReply) ->
     gen_fsm:send_event(Proposer, AcceptorReply).
@@ -53,10 +53,14 @@ deliver_accept(Proposer, AcceptorReply) ->
 %%% gen_fsm callbacks
 %%%===================================================================
 
-init([Proposal]) ->
+init([Proposal, ReplyPid]) ->
     Round = 1,
     acceptors:send_promise_requests(self(), Round),
-    {ok, awaiting_promises, #state{round = Round, value=#proposal{value = Proposal}}}.
+    {ok, awaiting_promises, #state{
+        round = Round, 
+        value=#proposal{value = Proposal},
+        reply_to = ReplyPid
+    }}.
 
 % on discovering a higher round has been promised
 awaiting_promises({promised, PromisedRound, _}, State) 
@@ -112,10 +116,13 @@ awaiting_accepts({accepted, Round}, #state{round=Round}=State) ->
     false ->
         {next_state, awaiting_accepts, NewState};
     true ->
-        % deliver result to application (client) 
-        learners:broadcast_result(State#state.value#proposal.value),
+        % deliver result to application (client)
+        LearnedValue = State#state.value#proposal.value,
+        learners:broadcast_result(LearnedValue),
+        NewState#state.reply_to ! {learned, LearnedValue},
         {stop, learned, NewState}
     end;
+
 awaiting_accepts(_, State) ->
     {next_state, awaiting_accepts, State}.
 
