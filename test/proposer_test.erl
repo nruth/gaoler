@@ -36,9 +36,25 @@ startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
 awaiting_promises_transitions_test_() -> {foreach, fun setup/0, fun teardown/1, [
     fun should_restart_prepare_with_higher_round_when_higher_round_promise_seen/0,
     fun should_count_promises_for_same_round/0,
-    fun should_not_count_promises_for_different_round/0,
-    fun should_adopt_proposal_value_sent_with_promise/0
+    fun should_not_count_promise_for_lower_round/0,
+    fun should_ignore_proposal_value_sent_with_promise_when_round_lower/0,
+    fun should_adopt_proposal_value_sent_with_promise_when_round_higher/0
 ]}.
+
+    should_count_promises_for_same_round() -> 
+        Round = 10, Promises = 1,
+        InitialState = #state{round = Round, promises = Promises},
+        Result = proposer:awaiting_promises({promised, Round, no_value}, InitialState),
+        {next_state, awaiting_promises, NewState=#state{}} = Result,
+        ?assertEqual(Promises + 1, NewState#state.promises).
+
+    %TODO property-testing candidate ?
+    should_not_count_promise_for_lower_round() -> 
+        Round = 10, Promises = 1,
+        InitialState = #state{round = Round, promises = Promises},
+        Result = proposer:awaiting_promises({promised, Round - 1, no_value}, InitialState),
+        {next_state, awaiting_promises, NewState=#state{}} = Result,
+        ?assertEqual(Promises + 0, NewState#state.promises).
 
     should_restart_prepare_with_higher_round_when_higher_round_promise_seen() ->
         Round = 1, Value = foo,
@@ -49,28 +65,10 @@ awaiting_promises_transitions_test_() -> {foreach, fun setup/0, fun teardown/1, 
         ?assertEqual(Highround + 1,NewState#state.round),
         ?assertEqual(0 ,NewState#state.promises).
 
-    should_count_promises_for_same_round() -> ok.
-    should_not_count_promises_for_different_round() -> ok.
-    should_adopt_proposal_value_sent_with_promise() -> ok.
+    should_ignore_proposal_value_sent_with_promise_when_round_lower() -> ok.
+    should_adopt_proposal_value_sent_with_promise_when_round_higher() -> ok.
 
-    on_promise_containing_no_accepted_value_no_past_accept_added_test() ->
-        PrepareRound = 300,
-        AcceptedValue = no_value,
-        InitialState = ?PROMISES(1)?ROUND(PrepareRound)?VALUE(bar),
-        Result = proposer:awaiting_promises({promised, PrepareRound, AcceptedValue}, InitialState),
-        ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[]}}, Result).
-
-    on_promise_containing_accepted_value_past_accept_added_test() ->
-        PrepareRound = 300,
-        AcceptedValue = #accepted{round=10, value=foo},
-        InitialState = ?PROMISES(1)?ROUND(PrepareRound)?VALUE(bar),
-        Result = proposer:awaiting_promises({promised, PrepareRound, AcceptedValue}, InitialState),
-        ?assertMatch({next_state, awaiting_promises, #state{past_accepts=[AcceptedValue]}}, Result).
-
-
-
-
-
+    
 %% Meck stub modules, used to enable decoupled unit tests
 setup() ->
     Mods = [acceptors, gaoler],
