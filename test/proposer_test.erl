@@ -33,13 +33,24 @@ startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
 
 
 
-awaiting_promises_transitions_test_() -> {foreach, fun setup/0, fun teardown/1, [
-    fun should_restart_prepare_with_higher_round_when_higher_round_promise_seen/0,
+awaiting_promises_higher_promise_seen_test_() -> {foreach, fun setup/0, fun teardown/1, [
+    fun should_restart_prepare_with_higher_round_when_higher_round_promise_seen/0
+]}.
+
+    should_restart_prepare_with_higher_round_when_higher_round_promise_seen() ->
+        InitialState = #state{round = 1, value = #proposal{value = foo}},
+        ReceivedRound = InitialState#state.round + 1,
+        Result = proposer:awaiting_promises({promised, ReceivedRound, bar}, InitialState),
+        {next_state, awaiting_promises, NewState=#state{}} = Result,
+        ?assertEqual(ReceivedRound + 1, NewState#state.round),
+        ?assertEqual(0, NewState#state.promises).
+
+awaiting_promises_count_promise_and_check_proposal_vs_past_accepts_test_() -> [
     fun should_count_promises_for_same_round/0,
     fun should_not_count_promise_for_lower_round/0,
     fun should_ignore_proposal_value_sent_with_promise_when_round_lower/0,
     fun should_adopt_proposal_value_sent_with_promise_when_round_higher/0
-]}.
+].
 
     should_count_promises_for_same_round() -> 
         InitialState = #state{round = 10, promises = 1},
@@ -55,14 +66,6 @@ awaiting_promises_transitions_test_() -> {foreach, fun setup/0, fun teardown/1, 
             {promised, InitialState#state.round - 1, no_value}, InitialState),
         {next_state, awaiting_promises, NewState=#state{}} = Result,
         ?assertEqual(InitialState#state.promises + 0, NewState#state.promises).
-
-    should_restart_prepare_with_higher_round_when_higher_round_promise_seen() ->
-        InitialState = #state{round = 1, value = #proposal{value = foo}},
-        ReceivedRound = InitialState#state.round + 1,
-        Result = proposer:awaiting_promises({promised, ReceivedRound, bar}, InitialState),
-        {next_state, awaiting_promises, NewState=#state{}} = Result,
-        ?assertEqual(ReceivedRound + 1, NewState#state.round),
-        ?assertEqual(0, NewState#state.promises).
 
     should_ignore_proposal_value_sent_with_promise_when_round_lower() -> 
         ReceivedRound = 2, ReceivedValue = bar,
@@ -83,7 +86,6 @@ awaiting_promises_transitions_test_() -> {foreach, fun setup/0, fun teardown/1, 
                     value = bar
                 }
             }, NewState).
-    
 
 
 awaiting_promises_prepare_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
