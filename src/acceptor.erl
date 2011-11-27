@@ -55,14 +55,17 @@ accept(Acceptor, Round, Value) ->
 
 handle_prepare({ElectionId, Round}, State) ->
     case lists:keyfind(ElectionId, 1, State#state.elections) of
-        {ElectionId, _Value}=FoundElection ->
+        {ElectionId, FoundElection} ->
             HighestPromise = max(Round, 
                                  FoundElection#election.promised),
             NewElection = FoundElection#election{promised = HighestPromise},
             NewState = lists:keyreplace(ElectionId, 1, State#state.elections,
                                         {ElectionId, NewElection}),
-            {reply, {promised, Round, NewElection#election.accepted}, NewState};
+            {reply, 
+             {promised, HighestPromise, NewElection#election.accepted}, 
+             NewState};
         false ->
+            io:format("hejhejhej", []),
             NewElection = #election{promised = Round},
             NewState = add_new_election(ElectionId, NewElection, State),
             {reply, {promised, Round, NewElection#election.accepted}, NewState}
