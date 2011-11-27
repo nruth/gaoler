@@ -60,13 +60,9 @@ handle_call({accept, Round, Value}, _From, State) ->
 handle_prepare({ElectionId, Round}, State) ->
     case lists:keyfind(ElectionId, 1, State#state.elections) of
         {ElectionId, FoundElection} ->
-            HighestPromise = max(Round, 
-                                 FoundElection#election.promised),
+            HighestPromise = max(Round, FoundElection#election.promised),
             NewElection = FoundElection#election{promised = HighestPromise},
-            UpdatedElections = 
-                lists:keyreplace(ElectionId, 1, State#state.elections, 
-                                 {ElectionId, NewElection}),
-            NewState = State#state{elections=UpdatedElections},
+            NewState = update_election(ElectionId, NewElection, State),
             Reply = {promised, HighestPromise, NewElection#election.accepted},
             {reply, Reply, NewState};
         false ->
@@ -79,18 +75,8 @@ handle_prepare({ElectionId, Round}, State) ->
 handle_accept({ElectionId, Round}, Value, State) ->
     {Reply, NextState} = 
         case lists:keyfind(ElectionId, 1, State#state.elections) of
-            {ElectionId, ElectionRecord} ->
-                case handle_accept_for_election(Round, Value, ElectionRecord) of
-                    {accepted, NewElection} ->
-                        UpdatedElections = 
-                            lists:keyreplace(ElectionId, 1, 
-                                             State#state.elections,
-                                             {ElectionId, NewElection}),
-                        NewState = State#state{elections = UpdatedElections},
-                        {{accepted, Round, Value}, NewState};
-                    reject ->
-                        {{reject, Round}, State}
-                end;
+            {ElectionId, _ElectionRecord}=Election ->
+                handle_accept_for_election(Round, Value, Election, State);
             false ->
                 NewElection = #election{promised = Round,
                                         accepted = {Round, Value}},
@@ -99,17 +85,26 @@ handle_accept({ElectionId, Round}, Value, State) ->
         end,
     {reply, Reply, NextState}.
 
-handle_accept_for_election(Round, Value, Election) 
+handle_accept_for_election(Round, Value, {ElectionId, Election}, State) 
   when Round >= Election#election.promised ->
     NewElection = Election#election{promised = Round, 
                                     accepted = {Round, Value}},
-    {accepted, NewElection};
-handle_accept_for_election(_, _, _) ->
-    reject.
+    NewState = update_election(ElectionId, NewElection, State),
+    {{accepted, Round, Value}, NewState};
+handle_accept_for_election(Round, _Value, _Election, State) ->
+    {{reject, Round}, State}.
 
 add_new_election(ElectionId, NewElection, State) ->
     State#state{elections = [{ElectionId, NewElection}|
                              State#state.elections]}.
+
+update_election(ElectionId, NewElection, State) ->
+    UpdatedElections = 
+        lists:keyreplace(ElectionId, 1, 
+                         State#state.elections,
+                         {ElectionId, NewElection}),
+    State#state{elections = UpdatedElections}.
+
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
