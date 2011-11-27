@@ -48,10 +48,14 @@ accept(Acceptor, Round, Value) ->
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
-%% handle_prepare(Round, State) ->
-%%     HighestPromise = max(Round, State#state.promised),
-%%     NewState = State#state{promised = HighestPromise},
-%%     {reply, {promised, HighestPromise, NewState#state.accepted}, NewState}.
+init([]) -> {ok, #state{}}.
+
+% gen_server callback
+handle_call({prepare, Round}, _From, State) ->
+  handle_prepare({1, Round}, State);
+handle_call({accept, Round, Value}, _From, State) ->
+  handle_accept({1, Round}, Value, State).
+
 
 handle_prepare({ElectionId, Round}, State) ->
     case lists:keyfind(ElectionId, 1, State#state.elections) of
@@ -71,11 +75,6 @@ handle_prepare({ElectionId, Round}, State) ->
             NewState = add_new_election(ElectionId, NewElection, State),
             {reply, {promised, Round, NewElection#election.accepted}, NewState}
     end.    
-
-%% handle_accept(Round, Value, State) when Round >= State#state.promised ->
-%%     {reply, {accepted, Round, Value}, State#state{accepted={Round, Value}}};
-%% handle_accept(Round, _, State) -> 
-%%     {reply, {reject, Round}, State}.    
 
 handle_accept({ElectionId, Round}, Value, State) ->
     {Reply, NextState} = 
@@ -111,14 +110,6 @@ handle_accept_for_election(_, _, _) ->
 add_new_election(ElectionId, NewElection, State) ->
     State#state{elections = [{ElectionId, NewElection}|
                              State#state.elections]}.
-
-init([]) -> {ok, #state{}}.
-
-% gen_server callback
-handle_call({prepare, Round}, _From, State) ->
-  handle_prepare({1, Round}, State);
-handle_call({accept, Round, Value}, _From, State) ->
-  handle_accept({1, Round}, Value, State).
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
