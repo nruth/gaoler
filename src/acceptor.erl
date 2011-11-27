@@ -59,11 +59,12 @@ handle_prepare({ElectionId, Round}, State) ->
             HighestPromise = max(Round, 
                                  FoundElection#election.promised),
             NewElection = FoundElection#election{promised = HighestPromise},
-            NewState = lists:keyreplace(ElectionId, 1, State#state.elections,
-                                        {ElectionId, NewElection}),
-            {reply, 
-             {promised, HighestPromise, NewElection#election.accepted}, 
-             NewState};
+            UpdatedElections = 
+                lists:keyreplace(ElectionId, 1, State#state.elections, 
+                                 {ElectionId, NewElection}),
+            NewState = State#state{elections=UpdatedElections},
+            Reply = {promised, HighestPromise, NewElection#election.accepted},
+            {reply, Reply, NewState};
         false ->
             io:format("hejhejhej", []),
             NewElection = #election{promised = Round},
@@ -82,9 +83,11 @@ handle_accept({ElectionId, Round}, Value, State) ->
             {ElectionId, ElectionRecord} ->
                 case handle_accept_for_election(Round, Value, ElectionRecord) of
                     {accepted, NewElection} ->
-                        NewState = lists:keyreplace(ElectionId, 1, 
-                                                    State#state.elections,
-                                                    {ElectionId, NewElection}),
+                        UpdatedElections = 
+                            lists:keyreplace(ElectionId, 1, 
+                                             State#state.elections,
+                                             {ElectionId, NewElection}),
+                        NewState = State#state{elections = UpdatedElections},
                         {{accepted, Round, Value}, NewState};
                     reject ->
                         {{reject, Round}, State}

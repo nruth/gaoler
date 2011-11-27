@@ -33,9 +33,8 @@ should_send_highest_promise_when_lower_prepare_received() ->
 should_not_change_state_when_receiving_lower_prepare_request() ->
     Sender = nil,
     InitialState = ?ONE_ELECTION(?PROMISED(6)),
-    Result = acceptor:handle_call({prepare, 5}, Sender, InitialState),
-    ExpectedState = ?ONE_ELECTION(#election{promised = 6}),
-    ?assertMatch({_, _, InitialState}, Result).
+    {_,_,State} = acceptor:handle_call({prepare, 5}, Sender, InitialState),
+    ?assertEqual(InitialState, State).
 
 
 accept_request_state_changes_test_() -> 
@@ -46,17 +45,17 @@ accept_request_state_changes_test_() ->
 
 should_update_accepted_when_higher_round_accept_requested() ->
     Sender = nil, 
-    InitialState = ?PROMISED_AND_ACCEPTED(4, prev),
+    InitialState = ?ONE_ELECTION(?PROMISED_AND_ACCEPTED(4, prev)),
     Proposal = {accept, 5, v},
     Result = acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({_, _, #election{accepted = {5,v}}}, Result).
+    ?assertMatch({_, _, ?ONE_ELECTION(#election{accepted = {5,v}})}, Result).
 
 should_not_change_accepted_when_lower_round_accept_requested() ->
     Sender = nil, 
-    InitialState = ?PROMISED_AND_ACCEPTED(6, prev),
+    InitialState = ?ONE_ELECTION(?PROMISED_AND_ACCEPTED(6, prev)),
     Proposal = {accept, 5, v},
     Result = acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({_, _, #election{accepted = prev}}, Result).
+    ?assertMatch({_, _, ?ONE_ELECTION(#election{accepted = prev})}, Result).
 
 
 accept_request_replies_test_() -> 
@@ -68,21 +67,21 @@ accept_request_replies_test_() ->
 
 should_reply_accept_for_promised_round() ->
     Sender = nil,
-    InitialState = ?PROMISED(5),
+    InitialState = ?ONE_ELECTION(?PROMISED(5)),
     Proposal = {accept, 5, v},
     Result = acceptor:handle_call(Proposal, Sender, InitialState),
     ?assertMatch({reply, {accepted, 5, v}, _}, Result).
 
-    should_reply_accept_for_round_higher_than_promise() ->
-        Sender = nil,
-        InitialState = ?PROMISED(3),
-        Proposal = {accept, 5, v},
-        Result = acceptor:handle_call(Proposal, Sender, InitialState),
-        ?assertMatch({reply, {accepted, 5, v}, _}, Result).
+should_reply_accept_for_round_higher_than_promise() ->
+    Sender = nil,
+    InitialState = ?ONE_ELECTION(?PROMISED(3)),
+    Proposal = {accept, 5, v},
+    Result = acceptor:handle_call(Proposal, Sender, InitialState),
+    ?assertMatch({reply, {accepted, 5, v}, _}, Result).
 
-    should_reply_reject_to_lower_round_than_promised() ->
-        Sender = nil,
-        InitialState = ?PROMISED(6),
-        Proposal = {accept, 5, v},
-        Result = acceptor:handle_call(Proposal, Sender, InitialState),
-        ?assertMatch({reply, {reject, 5}, _}, Result).
+should_reply_reject_to_lower_round_than_promised() ->
+    Sender = nil,
+    InitialState = ?ONE_ELECTION(?PROMISED(6)),
+    Proposal = {accept, 5, v},
+    Result = acceptor:handle_call(Proposal, Sender, InitialState),
+    ?assertMatch({reply, {reject, 5}, _}, Result).
