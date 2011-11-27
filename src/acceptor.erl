@@ -66,7 +66,6 @@ handle_prepare({ElectionId, Round}, State) ->
             Reply = {promised, HighestPromise, NewElection#election.accepted},
             {reply, Reply, NewState};
         false ->
-            io:format("hejhejhej", []),
             NewElection = #election{promised = Round},
             NewState = add_new_election(ElectionId, NewElection, State),
             {reply, {promised, Round, NewElection#election.accepted}, NewState}
