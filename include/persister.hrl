@@ -1,1 +1,3 @@
 -define(LOGFILE, "logfile.log").
+-define(LOGDIRECTORY, "acceptor_logs").
+-define(LOG(Election), ?LOGDIRECTORY++"/"++integer_to_list(Election)++".log").
