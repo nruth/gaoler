@@ -41,7 +41,7 @@ collect_elections(Files) ->
 
 gather_elections([Pid|Tail]) ->
     receive 
-        {Pid, {error, _}} ->
+        {Pid, {error, _}} -> % filter corrupt files, is this intended?
             gather_elections(Tail);
         {Pid, ReturnValue} ->
             [ReturnValue|gather_elections(Tail)]
