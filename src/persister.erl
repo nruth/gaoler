@@ -3,25 +3,41 @@
 -include_lib("persister.hrl").
 -include_lib("acceptor_state.hrl").
 
+%%% Log API
 -export([
          remember_promise/2,
          remember_vote/3,
-         load_saved_state/0,
-         read_log_file/2
+         load_saved_state/0
         ]).
 
+
+%%% Internal API
+-export([read_log_file/2]).
+
+
+%%% Log API
 remember_promise(Election, Round) ->
+    log_promise_to_file(Election, Round).
+
+remember_vote(Election, Round, Value) when is_atom(Value) ->
+    % currently only supports atoms for value
+    log_vote_to_file(Election, Round, Value).
+
+load_saved_state() ->
+    load_saved_state_from_file().
+
+
+%%% FILE LOG API
+log_promise_to_file(Election, Round) ->
     LogRecord = "{promised,"++integer_to_list(Round)++"}.\n",
     append_to_file(Election, LogRecord).
 
-% currently only supports atoms for value
-remember_vote(Election, Round, Value) when is_atom(Value) ->
+log_vote_to_file(Election, Round, Value) ->
     LogRecord = "{accepted,"++integer_to_list(Round)++
         ","++atom_to_list(Value)++"}.\n",
     append_to_file(Election, LogRecord).
 
-% returns a acceptor state record with previous elections
-load_saved_state() ->
+load_saved_state_from_file() ->
     case file:list_dir(?LOGDIRECTORY) of
         {ok, Files} ->
             Elections = collect_elections(Files),
@@ -30,6 +46,7 @@ load_saved_state() ->
             #state{}
     end.
 
+%%% Helper functions
 collect_elections(Files) ->
     Self = self(),
     Pids = lists:map(fun(File) ->
@@ -66,7 +83,6 @@ read_log_file(Parent, File) ->
     io:format("Result is: ~p~n", [Result]),
     Parent ! {self(), Result}.
 
-%%% Internal functions
 append_to_file(Election, Record) ->
     file:make_dir(?LOGDIRECTORY),
     case file:read_file_info(?LOG(Election)) of
