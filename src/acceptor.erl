@@ -37,13 +37,13 @@ stop(Name) ->
 %% @doc Request that the acceptor promises not to vote on older rounds
 %%--------------------------------------------------------------------
 prepare(Acceptor, Round) ->
-  gen_server:call(Acceptor, {prepare, Round}).
+  gen_server:call(Acceptor, {prepare, {1, Round}}).
 
 %%--------------------------------------------------------------------
 %% @doc Request that the acceptor votes for the proposal
 %%--------------------------------------------------------------------
 accept(Acceptor, Round, Value) ->
-  gen_server:call(Acceptor, {accept, Round, Value}).
+  gen_server:call(Acceptor, {accept, {1, Round}, Value}).
 
 %%%===================================================================
 %%% Implementation
@@ -51,14 +51,14 @@ accept(Acceptor, Round, Value) ->
 init([]) -> {ok, #state{}}.
 
 % gen_server callback
-handle_call({prepare, Round}, _From, State) ->
-    handle_prepare({1, Round}, State);
-handle_call({prepare, ElectionId, Round}, _From, State) ->
+handle_call({prepare, {ElectionId, Round}}, _From, State) ->
     handle_prepare({ElectionId, Round}, State);
-handle_call({accept, Round, Value}, _From, State) ->
-    handle_accept({1, Round}, Value, State);
+%%handle_call({prepare, Round}, _From, State) ->
+%%    handle_prepare({1, Round}, State);
 handle_call({accept, {ElectionId, Round}, Value}, _From, State) ->
     handle_accept({ElectionId, Round}, Value, State).
+%%handle_call({accept, Round, Value}, _From, State) ->
+%%    handle_accept({1, Round}, Value, State).
 
 
 handle_prepare({ElectionId, Round}, State) ->
