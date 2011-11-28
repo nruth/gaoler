@@ -48,18 +48,15 @@ accept(Acceptor, Round, Value) ->
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
-init([]) -> {ok, #state{}}.
+init([]) -> 
+    % StartState = persister:load_saved_state(),
+    {ok, #state{}}.
 
 % gen_server callback
 handle_call({prepare, {ElectionId, Round}}, _From, State) ->
     handle_prepare({ElectionId, Round}, State);
-%%handle_call({prepare, Round}, _From, State) ->
-%%    handle_prepare({1, Round}, State);
 handle_call({accept, {ElectionId, Round}, Value}, _From, State) ->
     handle_accept({ElectionId, Round}, Value, State).
-%%handle_call({accept, Round, Value}, _From, State) ->
-%%    handle_accept({1, Round}, Value, State).
-
 
 handle_prepare({ElectionId, Round}, State) ->
     case lists:keyfind(ElectionId, 1, State#state.elections) of

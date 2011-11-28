@@ -1,0 +1,1 @@
+-define(LOGFILE, "logfile.log").
