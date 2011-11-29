@@ -121,7 +121,7 @@ awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
         LearnedValue = State#state.value#proposal.value,
             io:format("Reached majority ~n", []),
         NewState#state.reply_to ! {learned, LearnedValue},
-        {stop, learned, NewState}
+        {stop, normal, NewState}
     end;
 
 awaiting_accepts(_, State) ->

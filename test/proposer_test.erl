@@ -199,7 +199,7 @@ awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1,
 should_halt_when_accept_quorum_reached() ->
     Proposal = #proposal{value = v},
     ?assertMatch(
-        {stop, learned, _},
+        {stop, normal, _},
         proposer:awaiting_accepts(
             {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
         )
