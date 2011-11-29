@@ -142,7 +142,7 @@ await_result_test() ->
     ?assertEqual(timeout, learner:await_result(1)),
     % receive well-formed result notification
     self() ! {result, v},
-    ?assertEqual({result, v}, learner:await_result(10)).
+    ?assertEqual({learned, v}, learner:await_result(10)).
 
 %% meck stubs
 setup() ->
