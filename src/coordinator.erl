@@ -14,7 +14,7 @@
 %%      tell the user we don't know
 get() ->
     case learner:get() of
-        {learned, Value} -> Value;
+        {learned, Value} -> {ok, Value};
         unknown -> unknown
     end.
 
@@ -35,11 +35,14 @@ get() ->
 %%          - Acceptor persists the (highest) round number and chosen value
 %%          - Learner -> Coordinator the chosen value
 
-%%% TODO: fix the api of results and rename to propose/2
 put(Proposal, Timeout) ->
     case learner:get() of
-        {learned, Value} -> Value;
-        unknown -> paxos(Proposal, Timeout);
+        {learned, Value} -> {ok, Value};
+        unknown -> 
+            case paxos(Proposal, Timeout) of
+                {learned, Value} -> {ok, Value};
+                timeout -> {error, timeout}
+            end;
         Else -> error({undefined, Else})
     end.
 

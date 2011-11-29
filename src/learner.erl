@@ -26,7 +26,7 @@ register_callback(Callback) ->
 %%  * returns timeout when Timeout exceded
 await_result(Timeout) ->
     receive
-        {result, _Value}=Result -> Result
+        {result, Value} -> {learned, Value}
     after
         Timeout -> timeout
     end.
