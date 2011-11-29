@@ -13,7 +13,8 @@
 % Specify a list of all unit test functions
 all() -> [
           coordinator_no_proposed_value_test,
-          coordinator_put_new_proposal_test
+          coordinator_put_new_proposal_test,
+          gaoler_acquire_and_release_lock_test
          ].
 
 init_per_suite(Config) ->
@@ -60,5 +61,9 @@ coordinator_put_new_proposal_test(_Config) ->
     {ok, Value} = coordinator:put(else, 1000).
 
    
+gaoler_acquire_and_release_lock_test(_Config) ->
+    ok = gaoler:acquire(beer),
+    io:format("I can haz beer~n", []),
+    ok = gaoler:release(beer).
 
 
