@@ -142,10 +142,10 @@ awaiting_accepts_count_accept_test_() -> {foreach, fun setup/0, fun teardown/1, 
     fun should_not_increment_accepts_when_accept_for_another_round_received/0
 ]}.
 
-    should_increment_accepts_when_accept_for_round_received() ->
-        {next_state, awaiting_accepts, #state{round = 10, accepts = Accepts}} = 
-            proposer:awaiting_accepts({accepted, 10}, #state{round = 10}),
-        ?assertEqual(1, Accepts).
+should_increment_accepts_when_accept_for_round_received() ->
+    {next_state, awaiting_accepts, #state{round = 10, accepts = Accepts}} = 
+        proposer:awaiting_accepts({accepted, 10, value}, #state{round = 10}),
+    ?assertEqual(1, Accepts).
 
     should_not_increment_accepts_when_accept_for_another_round_received() ->
         {next_state, awaiting_accepts, #state{round = 10, accepts = Accepts}} = 
@@ -201,7 +201,7 @@ should_halt_when_accept_quorum_reached() ->
     ?assertMatch(
         {stop, learned, _},
         proposer:awaiting_accepts(
-            {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
+            {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
         )
     ).
 
@@ -209,7 +209,7 @@ should_notify_client_of_result() ->
     Proposal = #proposal{value = v},
     ReplyTo = nspy:mock(),
     proposer:awaiting_accepts(
-        {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal, reply_to=ReplyTo}
+        {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=ReplyTo}
     ),
     timer:sleep(2),
     nspy:assert_message_received(ReplyTo, {learned, v}).
