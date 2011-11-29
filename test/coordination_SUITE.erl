@@ -55,9 +55,9 @@ coordinator_no_proposed_value_test(_Config) ->
 
 coordinator_put_new_proposal_test(_Config) ->
     Value = my_value,
-    {ok, Value} = coordinator:put(Value, 1000),
-    {ok, Value} = coordinator:get(),
-    {ok, Value} = coordinator:put(else, 1000).
+    {ok, Value} = coordinator:put(Value, 1000).
+
+% TODO: add testing for caching
 
    
 
