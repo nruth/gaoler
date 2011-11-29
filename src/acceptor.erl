@@ -49,8 +49,8 @@ accept(Acceptor, Round, Value) ->
 %%% Implementation
 %%%===================================================================
 init([]) -> 
-    % StartState = persister:load_saved_state(),
-    {ok, #state{}}.
+    StartState = persister:load_saved_state(),
+    {ok, StartState}.
 
 % gen_server callback
 handle_call({prepare, {ElectionId, Round}}, _From, State) ->
@@ -65,10 +65,12 @@ handle_prepare({ElectionId, Round}, State) ->
             NewElection = FoundElection#election{promised = HighestPromise},
             NewState = update_election(ElectionId, NewElection, State),
             Reply = {promised, HighestPromise, NewElection#election.accepted},
+            persister:remember_promise(ElectionId, Round),
             {reply, Reply, NewState};
         false ->
             NewElection = #election{promised = Round},
             NewState = add_new_election(ElectionId, NewElection, State),
+            persister:remember_promise(ElectionId, Round),
             {reply, {promised, Round, NewElection#election.accepted}, NewState}
     end.    
 
@@ -81,6 +83,7 @@ handle_accept({ElectionId, Round}, Value, State) ->
                 NewElection = #election{promised = Round,
                                         accepted = {Round, Value}},
                 NewState = add_new_election(ElectionId, NewElection, State),
+                persister:remember_vote(ElectionId, Round, Value),
                 {{accepted, Round, Value}, NewState}
         end,
     {reply, Reply, NextState}.
@@ -90,6 +93,7 @@ handle_accept_for_election(Round, Value, {ElectionId, Election}, State)
     NewElection = Election#election{promised = Round, 
                                     accepted = {Round, Value}},
     NewState = update_election(ElectionId, NewElection, State),
+    persister:remember_vote(ElectionId, Round, Value),
     {{accepted, Round, Value}, NewState};
 handle_accept_for_election(Round, _Value, _Election, State) ->
     {{reject, Round}, State}.

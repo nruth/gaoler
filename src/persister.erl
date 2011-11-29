@@ -17,11 +17,11 @@
 
 %%% Log API
 remember_promise(Election, Round) ->
-    log_promise_to_file(Election, Round).
+    ok = log_promise_to_file(Election, Round).
 
 remember_vote(Election, Round, Value) when is_atom(Value) ->
     % currently only supports atoms for value
-    log_vote_to_file(Election, Round, Value).
+    ok = log_vote_to_file(Election, Round, Value).
 
 load_saved_state() ->
     load_saved_state_from_file().
