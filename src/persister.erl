@@ -80,7 +80,6 @@ read_log_file(Parent, File) ->
                 % critical -> could not parse the logfile
                 {error, parse_error}
         end,
-    io:format("Result is: ~p~n", [Result]),
     Parent ! {self(), Result}.
 
 append_to_file(Election, Record) ->
