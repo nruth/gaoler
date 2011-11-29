@@ -38,11 +38,7 @@ get() ->
 put(Proposal, Timeout) ->
     case learner:get() of
         {learned, Value} -> {ok, Value};
-        unknown -> 
-            case paxos(Proposal, Timeout) of
-                {learned, Value} -> {ok, Value};
-                timeout -> {error, timeout}
-            end;
+        unknown -> paxos(Proposal, Timeout);
         Else -> error({undefined, Else})
     end.
 
@@ -50,8 +46,8 @@ put(Proposal, Timeout) ->
 paxos(Proposal, Timeout) ->
     ProposerPid = proposer:propose(Proposal),
     {ok, _} = timer:kill_after(Timeout, ProposerPid),
-    receive {learned, _}=Value -> 
-        Value
+    receive {learned, Value} -> 
+        {ok, Value}
     after Timeout -> 
-        timeout
+        {error, timeout}
     end.

@@ -193,7 +193,6 @@ awaiting_accepts_reject_quorum_test_() -> {foreach, fun setup/0, fun teardown/1,
 
 awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
     fun should_halt_when_accept_quorum_reached/0,
-    fun should_broadcast_result_notification_to_learners_on_accept_quorum/0,
     fun should_notify_client_of_result/0
 ]}.
 
@@ -205,14 +204,6 @@ should_halt_when_accept_quorum_reached() ->
             {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
         )
     ).
-
-should_broadcast_result_notification_to_learners_on_accept_quorum() ->
-    Proposal = #proposal{value = v},
-    proposer:awaiting_accepts(
-        {accepted, 10}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
-    ),
-    ?assert(meck:called(learners, broadcast_result, [v])).
-
 
 should_notify_client_of_result() ->
     Proposal = #proposal{value = v},
