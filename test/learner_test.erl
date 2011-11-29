@@ -45,6 +45,7 @@ behaviour_on_receicing_a_learned_value_query_test_() ->[
             learner:handle_call(get_learned, from, ?NOSTATE)
         ).
 
+
 %% meck stubs
 setup() ->
     meck:new(learners),
