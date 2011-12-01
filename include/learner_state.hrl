@@ -1,6 +1,3 @@
--record(learner, 
-	{
-	  learned = [],
-	  accepts = [],
-	  callbacks = []
-	}).
+-record(learner, {
+    learned = []
+}).

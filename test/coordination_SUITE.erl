@@ -49,15 +49,15 @@ end_per_testcase(_TestCase, Config) ->
 %% test cases %%
 %%%%%%%%%%%%%%%%
 
-coordinator_no_proposed_value_test(Config) ->
+coordinator_no_proposed_value_test(_Config) ->
     unknown = coordinator:get().
 
 
-coordinator_put_new_proposal_test(Config) ->
+coordinator_put_new_proposal_test(_Config) ->
     Value = my_value,
-    {result, Value} = coordinator:put(Value, 1000),
-    Value = coordinator:get(),
-    Value = coordinator:put(else, 1000).
+    {ok, Value} = coordinator:put(Value, 1000).
+
+% TODO: add testing for caching
 
    
 
