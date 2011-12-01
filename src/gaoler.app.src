@@ -8,9 +8,5 @@
                   stdlib
                  ]},
   {mod, { gaoler_app, []}},
-  {env, [{nodes, ['gaoler@lakka-1.it.kth.se',
-  		  'gaoler@lakka-2.it.kth.se',
-		  'gaoler@lakka-3.it.kth.se',
-		  'gaoler@lakka-4.it.kth.se',
-		  'gaoler@lakka-5.it.kth.se']}]}
+  {env, [{nodes, []}]}
  ]}.
