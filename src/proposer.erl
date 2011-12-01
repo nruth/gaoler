@@ -5,10 +5,10 @@
 
 %% API
 -export([
-    start_link/2,
+    start_link/3,
     deliver_promise/2,
     deliver_accept/2,
-    propose/1
+    propose/2
     ]).
 
 %% gen_fsm callbacks
@@ -36,12 +36,12 @@
 %% begins an election where the proposer will seek
 %% concensus on a value, proposing Proposal if no
 %% other value has already been accepted by a majority
-propose(Proposal) ->
+propose(Election, Proposal) ->
     % TODO: is start_link appropriate? what about proc failures?
     ?MODULE:start_link(Proposal, self()).
 
-start_link(Proposal, ReplyPid) ->
-    gen_fsm:start_link(?MODULE, [Proposal, ReplyPid], []).
+start_link(Election, Proposal, ReplyPid) ->
+    gen_fsm:start_link(?MODULE, [Election, Proposal, ReplyPid], []).
 
 deliver_promise(Proposer, AcceptorReply) ->
     gen_fsm:send_event(Proposer, AcceptorReply).
@@ -53,7 +53,7 @@ deliver_accept(Proposer, AcceptorReply) ->
 %%% gen_fsm callbacks
 %%%===================================================================
 
-init([Proposal, ReplyPid]) ->
+init([Election, Proposal, ReplyPid]) ->
     Round = 1,
     acceptors:send_promise_requests(self(), Round),
     {ok, awaiting_promises, #state{

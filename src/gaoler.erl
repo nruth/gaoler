@@ -93,9 +93,10 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%%===================================================================
 
 handle_acquire(Resource) ->
-    Number = ticket_machine:next(),
-    case coordinator:put(Number, 1000) of 
-        {ok, Number} ->
+    Client = client,
+    Ticket = ticket_machine:next(),
+    case coordinator:put(Ticket, Client, 1000) of 
+        {ok, Client} ->
             ok;
         {ok, _OtherNumber} ->
             % someone else got the lock, try again (with backoff time)
