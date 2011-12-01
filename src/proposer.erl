@@ -37,8 +37,7 @@
 %% concensus on a value, proposing Proposal if no
 %% other value has already been accepted by a majority
 propose(Election, Proposal) ->
-    % TODO: is start_link appropriate? what about proc failures?
-    ?MODULE:start_link(Proposal, self()).
+    ?MODULE:start_link(Election, Proposal, self()).
 
 start_link(Election, Proposal, ReplyPid) ->
     gen_fsm:start_link(?MODULE, [Election, Proposal, ReplyPid], []).

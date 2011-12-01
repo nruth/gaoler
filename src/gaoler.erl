@@ -94,13 +94,13 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 handle_acquire(Resource) ->
     Client = client,
-    Ticket = ticket_machine:next(),
+    {ok, Ticket} = ticket_machine:next(),
     case coordinator:put(Ticket, Client, 1000) of 
         {ok, Client} ->
             ok;
-        {ok, _OtherNumber} ->
-            % someone else got the lock, try again (with backoff time)
-            handle_acquire(Resource);
+        %% {ok, _OtherNumber} ->
+        %%     % someone else got the lock, try again (with backoff time)
+        %%     handle_acquire(Resource);
         {error, _}=Error ->
             Error
     end.
