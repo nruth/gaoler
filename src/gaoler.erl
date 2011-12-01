@@ -93,7 +93,7 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%%===================================================================
 
 handle_acquire(Resource) ->
-    Number = next_ticket_number_for(Resource),
+    Number = ticket_machine:next(),
     case coordinator:put(Number, 1000) of 
         {ok, Number} ->
             ok;
@@ -103,9 +103,6 @@ handle_acquire(Resource) ->
         {error, _}=Error ->
             Error
     end.
-
-next_ticket_number_for(_Resource) ->
-    atom.
                    
 handle_release(_Resource) ->
     ok. % TODO
