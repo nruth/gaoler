@@ -37,38 +37,96 @@ stop(Name) ->
 %% @doc Request that the acceptor promises not to vote on older rounds
 %%--------------------------------------------------------------------
 prepare(Acceptor, Round) ->
-  gen_server:call(Acceptor, {prepare, Round}).
+  gen_server:call(Acceptor, {prepare, {1, Round}}).
 
 %%--------------------------------------------------------------------
 %% @doc Request that the acceptor votes for the proposal
 %%--------------------------------------------------------------------
 accept(Acceptor, Round, Value) ->
-  gen_server:call(Acceptor, {accept, Round, Value}).
+  gen_server:call(Acceptor, {accept, {1, Round}, Value}).
 
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
-handle_prepare(Round, State) ->
-    HighestPromise = max(Round, State#state.promised),
-    NewState = State#state{promised = HighestPromise},
-    persister:remember_promise(HighestPromise),
-    {reply, {promised, HighestPromise, NewState#state.accepted}, NewState}.
-
-handle_accept(Round, Value, State) when Round >= State#state.promised ->
-    persister:remember_vote(Round, Value),
-    {reply, {accepted, Round, Value}, State#state{accepted={Round, Value}}};
-handle_accept(Round, _, State) -> 
-    {reply, {reject, Round}, State}.
-
 init([]) -> 
     StartState = persister:load_saved_state(),
     {ok, StartState}.
 
 % gen_server callback
-handle_call({prepare, Round}, _From, State) ->
-    handle_prepare(Round, State);
-handle_call({accept, Round, Value}, _From, State) ->
-    handle_accept(Round, Value, State).
+handle_call({prepare, {ElectionId, Round}}, _From, State) ->
+    handle_prepare({ElectionId, Round}, State);
+handle_call({accept, {ElectionId, Round}, Value}, _From, State) ->
+    handle_accept({ElectionId, Round}, Value, State).
+
+%%%===================================================================
+%%% Prepare requests
+%%%=================================================================== 
+handle_prepare({ElectionId, Round}, State) ->
+    case lists:keyfind(ElectionId, 1, State#state.elections) of
+        {ElectionId, FoundElection} ->
+            handle_prepare_for_existing_election(ElectionId, Round, FoundElection, State);
+        false ->
+            create_new_election_from_prepare_request(ElectionId, Round, State)
+    end.    
+
+handle_prepare_for_existing_election(ElectionId, Round, FoundElection, State) ->
+    HighestPromise = max(Round, FoundElection#election.promised),
+    NewElection = FoundElection#election{promised = HighestPromise},
+    NewState = update_election(ElectionId, NewElection, State),
+    Reply = {promised, HighestPromise, NewElection#election.accepted},
+    persister:remember_promise(ElectionId, NewElection#election.promised),
+    {reply, Reply, NewState}.
+
+create_new_election_from_prepare_request(ElectionId, Round, State) ->
+    NewElection = #election{promised = Round},
+    NewState = add_new_election(ElectionId, NewElection, State),
+    persister:remember_promise(ElectionId, Round),
+    {reply, {promised, Round, NewElection#election.accepted}, NewState}.
+
+%%%===================================================================
+%%% Accept requests
+%%%=================================================================== 
+handle_accept({ElectionId, Round}, Value, State) ->
+    {Reply, NextState} = 
+        case lists:keyfind(ElectionId, 1, State#state.elections) of
+            {ElectionId, _ElectionRecord}=Election ->
+                handle_accept_for_election(Round, Value, Election, State);
+            false ->
+                create_new_election_from_accept_request(ElectionId, Round, Value, State)
+        end,
+    {reply, Reply, NextState}.
+
+handle_accept_for_election(Round, Value, {ElectionId, Election}, State) 
+  when Round >= Election#election.promised ->
+    NewElection = Election#election{promised = Round, 
+                                    accepted = {Round, Value}},
+    NewState = update_election(ElectionId, NewElection, State),
+    persister:remember_vote(ElectionId, Round, Value),
+    {{accepted, Round, Value}, NewState};
+handle_accept_for_election(Round, _Value, _Election, State) ->
+    {{reject, Round}, State}.
+
+create_new_election_from_accept_request(ElectionId, Round, Value, State) ->
+    NewElection = #election{promised = Round,
+                            accepted = {Round, Value}},
+    NewState = add_new_election(ElectionId, NewElection, State),
+    persister:remember_vote(ElectionId, Round, Value),
+    {{accepted, Round, Value}, NewState}.
+
+
+%%%===================================================================
+%%% Internal functions
+%%%=================================================================== 
+add_new_election(ElectionId, NewElection, State) ->
+    State#state{elections = [{ElectionId, NewElection}|
+                             State#state.elections]}.
+
+update_election(ElectionId, NewElection, State) ->
+    UpdatedElections = 
+        lists:keyreplace(ElectionId, 1, 
+                         State#state.elections,
+                         {ElectionId, NewElection}),
+    State#state{elections = UpdatedElections}.
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
