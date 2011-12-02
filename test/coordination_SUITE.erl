@@ -15,8 +15,8 @@
 all() -> [
           coordinator_no_proposed_value_test,
           coordinator_put_new_proposal_test,
-          gaoler_acquire_and_release_lock_test,
-          acquire_two_locks_immediately_release_test
+          single_request_test,
+          multiple_requests_test
          ].
 
 init_per_suite(Config) ->
@@ -76,13 +76,15 @@ coordinator_put_new_proposal_test(_Config) ->
 % TODO: add testing for caching
 
    
-gaoler_acquire_and_release_lock_test(_Config) ->
-    ok = gaoler:acquire(beer),   
-    ok = gaoler:release(beer).
+single_request_test(_Config) ->
+    Beer = beer, Client = client,
+    {resource, Beer, {Client, 1}} = gaoler:request(Beer, Client).
 
 
-acquire_two_locks_immediately_release_test(_Config) ->
-    ok = gaoler:acquire(beer),
-    ok = gaoler:release(beer),
-    ok = gaoler:acquire(beer),
-    ok = gaoler:release(beer).
+multiple_requests_test(_Config) ->
+    Beer = beer, Client = client,
+    {resource, Beer, {Client, 1}} = gaoler:request(Beer, Client),
+    {resource, Beer, {Client, 2}} = gaoler:request(Beer, Client),
+    {resource, Beer, {Client, 3}} = gaoler:request(Beer, Client),
+    {resource, Beer, {Client, 4}} = gaoler:request(Beer, Client).
+    

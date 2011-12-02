@@ -7,8 +7,7 @@
 -export([
 	 start_link/0, 
 	 get_acceptors/0,
-         acquire/1,
-         release/1,
+         request/2,
 	 join/0,
 	 stop/0
 	]).
@@ -20,7 +19,8 @@
 	 handle_cast/2, 
 	 handle_info/2,
 	 terminate/2, 
-	 code_change/3
+	 code_change/3,
+         do_handle_acquire/3
 	]).
 
 -define(SERVER, ?MODULE). 
@@ -33,11 +33,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-acquire(Resource) ->
-    handle_acquire(Resource).
-
-release(Resource) ->
-    handle_release(Resource).
+request(Resource, Client) ->
+    handle_acquire(Resource, Client).
 
 join() ->
     gen_server:abcast(?SERVER, {join, node()}). 
@@ -92,18 +89,27 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%% Internal functions
 %%%===================================================================
 
-handle_acquire(Resource) ->
-    Client = client,
+handle_acquire(Resource, Client) ->
+    Parent = self(),
+    spawn(fun() ->
+                  ?MODULE:do_handle_acquire(Resource, Client, Parent)
+          end),
+    receive
+        {resource, Resource, _}=Result ->
+            Result
+    after 1000 ->
+            {error, timed_out}
+    end.
+            
+
+do_handle_acquire(Resource, Client, Parent) ->
     {ok, Ticket} = ticket_machine:next(),
     case coordinator:put(Ticket, Client, 1000) of 
         {ok, Client} ->
-            ok;
+            Parent ! {resource, Resource, {Client, Ticket}};
         %% {ok, _OtherNumber} ->
         %%     % someone else got the lock, try again (with backoff time)
         %%     handle_acquire(Resource);
         {error, _}=Error ->
             Error
     end.
-                   
-handle_release(_Resource) ->
-    ok. % TODO
