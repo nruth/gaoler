@@ -25,7 +25,7 @@ proxy_test_() ->
     }.
 
 acceptor_reply_with_promise() ->
-    Round = 1,
+    Round = {1,1},
     
     % start 5 acceptors
     Acceptors = start_acceptors(5),
@@ -47,7 +47,7 @@ acceptor_reply_with_promise() ->
     [acceptor:stop(Acceptor) || Acceptor <- Acceptors].
 
 acceptor_reply_with_promises_one_acceptor_crash() ->
-    Round = 1,
+    Round = {1,1},
     Acceptors = start_acceptors(5),
     
     % kill one acceptor
@@ -65,7 +65,7 @@ acceptor_reply_with_promises_one_acceptor_crash() ->
 
 %% TestCase: Accept requests
 on_send_accept_acceptors_reply() ->
-    Round = 1,
+    Round = {1,1},
     Value = foo,
     Acceptors = start_acceptors(5),
 
