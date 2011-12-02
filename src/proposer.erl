@@ -54,20 +54,22 @@ deliver_accept(Proposer, AcceptorReply) ->
 
 init([Election, Proposal, ReplyPid]) ->
     Round = 1,
-    acceptors:send_promise_requests(self(), Round),
+    acceptors:send_promise_requests(self(), {Election,Round}),
     {ok, awaiting_promises, #state{
-        round = Round, 
-        value=#proposal{value = Proposal},
-        reply_to = ReplyPid
+           election = Election,
+           round = Round, 
+           value=#proposal{value = Proposal},
+           reply_to = ReplyPid
     }}.
 
 % on discovering a higher round has been promised
 awaiting_promises({promised, PromisedRound, _}, State) 
     when PromisedRound > State#state.round -> % restart with Round+1 
-    NextRound = PromisedRound + 1,
+    NextRound = PromisedRound + 1, 
     NewState = State#state{round = NextRound, promises = 0},
     % TODO: add exponential backoff
-    acceptors:send_promise_requests(self(), NextRound),
+    acceptors:send_promise_requests(self(), {NewState#state.election,
+                                             NextRound}),
     {next_state, awaiting_promises, NewState};
         
 % on receiving a promise without past-vote data
@@ -93,7 +95,9 @@ awaiting_promises(_, State) ->
 % majority reached
 loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) ->
     Proposal = State#state.value#proposal.value,
-    acceptors:send_accept_requests(self(), State#state.round, Proposal),
+    acceptors:send_accept_requests(self(), 
+                                   {State#state.election, State#state.round}, 
+                                   Proposal),
     {next_state, awaiting_accepts, State};
 
 loop_until_promise_quorum(State) -> % keep waiting
@@ -103,7 +107,7 @@ loop_until_promise_quorum(State) -> % keep waiting
 
 awaiting_accepts({rejected, Round}, #state{round = Round, rejects = 2}=State) ->
     RetryRound = Round + 2,
-    acceptors:send_promise_requests(self(), RetryRound),
+    acceptors:send_promise_requests(self(), {State#state.election, RetryRound}),
     {next_state, awaiting_promises, State#state{round = RetryRound, promises = 0}};
 
 awaiting_accepts({rejected, Round}, #state{round=Round}=State) ->

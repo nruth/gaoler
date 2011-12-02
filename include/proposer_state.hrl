@@ -4,6 +4,7 @@
 }).
 
 -record(state, {
+    election  = 0,
     round     = undefined,
     value     = #proposal{},
     promises  = 0,
