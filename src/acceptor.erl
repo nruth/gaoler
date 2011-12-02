@@ -74,13 +74,13 @@ handle_prepare_for_existing_election(ElectionId, Round, FoundElection, State) ->
     NewElection = FoundElection#election{promised = HighestPromise},
     NewState = update_election(ElectionId, NewElection, State),
     Reply = {promised, HighestPromise, NewElection#election.accepted},
-%    persister:remember_promise(ElectionId, NewElection#election.promised),
+    persister:remember_promise(ElectionId, NewElection#election.promised),
     {reply, Reply, NewState}.
 
 create_new_election_from_prepare_request(ElectionId, Round, State) ->
     NewElection = #election{promised = Round},
     NewState = add_new_election(ElectionId, NewElection, State),
-%    persister:remember_promise(ElectionId, Round),
+    persister:remember_promise(ElectionId, Round),
     {reply, {promised, Round, NewElection#election.accepted}, NewState}.
 
 %%%===================================================================
@@ -101,7 +101,7 @@ handle_accept_for_election(Round, Value, {ElectionId, Election}, State)
     NewElection = Election#election{promised = Round, 
                                     accepted = {Round, Value}},
     NewState = update_election(ElectionId, NewElection, State),
-%    persister:remember_vote(ElectionId, Round, Value),
+    persister:remember_vote(ElectionId, Round, Value),
     {{accepted, Round, Value}, NewState};
 handle_accept_for_election(Round, _Value, _Election, State) ->
     {{reject, Round}, State}.
@@ -110,7 +110,7 @@ create_new_election_from_accept_request(ElectionId, Round, Value, State) ->
     NewElection = #election{promised = Round,
                             accepted = {Round, Value}},
     NewState = add_new_election(ElectionId, NewElection, State),
-%    persister:remember_vote(ElectionId, Round, Value),
+    persister:remember_vote(ElectionId, Round, Value),
     {{accepted, Round, Value}, NewState}.
 
 
