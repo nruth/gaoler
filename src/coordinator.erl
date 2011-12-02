@@ -23,18 +23,17 @@ get() ->
 %%  - a previously agreed value
 %% Timeout specifies in ms the maximum time to block waiting for a result
 %%
-%% User: "I want X"
+%% Caller: "I want X"
 %% Coordinator: "do we have a value?"
 %% if Learner replies "Yes": 
-%%      return the value to user
+%%      return the value
 %% else Learner replies "No": no value has been decided, or it's been forgotten
-%%      Coordinator -> Learner: tell me when a value is decided (callback)
 %%      Coordinator -> Proposer: propose X
-%%      Proposer: runs Paxos for X,
+%%      Proposer: runs Paxos for X, 
+%%                  informs X of result
 %%          Consequently:
-%%          - Acceptor persists the (highest) round number and chosen value
-%%          - Learner -> Coordinator the chosen value
-
+%%          - Acceptor persists relevant info for fault tolerance re: this election
+%%          - Learners cache the result
 put(Election, Proposal, Timeout) ->
     case learner:get() of
         {learned, Value} -> {ok, Value};
