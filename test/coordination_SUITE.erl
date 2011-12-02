@@ -6,6 +6,7 @@
 % required for common_test to work
 -include_lib("common_test/include/ct.hrl").
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% common test callbacks %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -56,7 +57,7 @@ coordinator_no_proposed_value_test(_Config) ->
 
 coordinator_put_new_proposal_test(_Config) ->
     Value = my_value,
-    Election = 1,
+    {ok, Election} = ticket_machine:next(),
     {ok, Value} = coordinator:put(Election, Value, 1000).
 
 % TODO: add testing for caching
