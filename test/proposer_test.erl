@@ -21,30 +21,30 @@ startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
     fun should_broadcast_prepare_request/0
 ]}.
 
-awaiting_promises() ->
-    ?assertMatch({ok, awaiting_promises, _}, proposer:init([1, foo, self()])).
+    awaiting_promises() ->
+        ?assertMatch({ok, awaiting_promises, _}, proposer:init([1, foo, self()])).
 
-starts_with_round_1() ->
-    ?assertMatch({ok, _, #state{round=1}}, proposer:init([1, foo, self()])).
+    starts_with_round_1() ->
+        ?assertMatch({ok, _, #state{round=1}}, proposer:init([1, foo, self()])).
 
-starts_with_0_promises() ->
-    ?assertMatch({ok, _, #state{promises=0}}, proposer:init([1, foo, self()])).
+    starts_with_0_promises() ->
+        ?assertMatch({ok, _, #state{promises=0}}, proposer:init([1, foo, self()])).
 
-remembers_proposal() ->
-    Proposal = foo,
-    Election = 1,
-    {ok, _, State} = proposer:init([Election, Proposal, self()]),
-    Value = State#state.value#proposal.value,
-    ?assertEqual(Proposal, Value).
+    remembers_proposal() ->
+        Proposal = foo,
+        Election = 1,
+        {ok, _, State} = proposer:init([Election, Proposal, self()]),
+        Value = State#state.value#proposal.value,
+        ?assertEqual(Proposal, Value).
 
-remembers_reply_to_pid() ->
-    ReplyTo = self(),
-    ?assertMatch({ok, _, #state{reply_to=ReplyTo}}, proposer:init([1, foo, ReplyTo])).
+    remembers_reply_to_pid() ->
+        ReplyTo = self(),
+        ?assertMatch({ok, _, #state{reply_to=ReplyTo}}, proposer:init([1, foo, ReplyTo])).
 
-should_broadcast_prepare_request() ->
-    proposer:init([1, val, self()]),
-    ?assert(meck:called(acceptors, send_promise_requests, 
-                        [self(), _Round={1,1}])).
+    should_broadcast_prepare_request() ->
+        proposer:init([1, val, self()]),
+        ?assert(meck:called(acceptors, send_promise_requests, 
+                            [self(), _Round={1,1}])).
 
 
 %%% =============================
@@ -139,22 +139,24 @@ awaiting_promises_prepare_quorum_test_() -> {foreach, fun setup/0, fun teardown/
 %%% Awaiting Accepts state tests
 %%% =============================
 
-awaiting_accepts_count_accept_test_() -> {foreach, fun setup/0, fun teardown/1, [
+awaiting_accepts_count_accept_test_() -> 
+    {foreach, fun setup/0, fun teardown/1, [
     fun should_increment_accepts_when_accept_for_round_received/0,
     fun should_not_increment_accepts_when_accept_for_another_round_received/0
 ]}.
 
-should_increment_accepts_when_accept_for_round_received() ->
-    {next_state, awaiting_accepts, #state{round = 10, accepts = Accepts}} = 
-        proposer:awaiting_accepts({accepted, 10, value}, #state{round = 10}),
-    ?assertEqual(1, Accepts).
-
-    should_not_increment_accepts_when_accept_for_another_round_received() ->
+    should_increment_accepts_when_accept_for_round_received() ->
         {next_state, awaiting_accepts, #state{round = 10, accepts = Accepts}} = 
-            proposer:awaiting_accepts({accepted, 8}, #state{round = 10}),
-        ?assertEqual(0, Accepts).
+            proposer:awaiting_accepts({accepted, 10, value}, #state{round = 10}),
+        ?assertEqual(1, Accepts).
 
-awaiting_accepts_count_reject_test_() -> {foreach, fun setup/0, fun teardown/1, [
+        should_not_increment_accepts_when_accept_for_another_round_received() ->
+            {next_state, awaiting_accepts, #state{round = 10, accepts = Accepts}} = 
+                proposer:awaiting_accepts({accepted, 8}, #state{round = 10}),
+            ?assertEqual(0, Accepts).
+
+awaiting_accepts_count_reject_test_() -> 
+    {foreach, fun setup/0, fun teardown/1, [
     fun should_increment_rejects_when_reject_for_round_received/0,
     fun should_not_increment_rejects_when_reject_for_another_round_received/0
 ]}.
@@ -169,7 +171,8 @@ awaiting_accepts_count_reject_test_() -> {foreach, fun setup/0, fun teardown/1, 
             proposer:awaiting_accepts({rejected, 8}, #state{round = 10}),
         ?assertEqual(0, Rejects).
 
-awaiting_accepts_reject_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
+awaiting_accepts_reject_quorum_test_() -> 
+    {foreach, fun setup/0, fun teardown/1, [
     fun should_transition_to_prepare_if_reject_quorum_reached/0,
     fun should_broadcast_new_prepare_request_on_reject_quorum/0
 ]}.
@@ -188,11 +191,12 @@ awaiting_accepts_reject_quorum_test_() -> {foreach, fun setup/0, fun teardown/1,
             )
         ).
 
-should_broadcast_new_prepare_request_on_reject_quorum() ->
-    InitialState = #state{rejects = 2, round = 10, election=1},
-    proposer:awaiting_accepts({rejected, 10}, InitialState),
-    ?assert(meck:called(acceptors, send_promise_requests, 
-                        [self(), _Round={1, 12}])).
+    should_broadcast_new_prepare_request_on_reject_quorum() ->
+        InitialState = #state{rejects = 2, round = 10, election=1},
+        proposer:awaiting_accepts({rejected, 10}, InitialState),
+        ?assert(meck:called(acceptors, send_promise_requests, 
+                            [self(), _Round={1, 12}])).
+
 
 
 awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
@@ -200,23 +204,23 @@ awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1,
     fun should_notify_client_of_result/0
 ]}.
 
-should_halt_when_accept_quorum_reached() ->
-    Proposal = #proposal{value = v},
-    ?assertMatch(
-        {stop, normal, _},
-        proposer:awaiting_accepts(
-            {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
-        )
-    ).
+    should_halt_when_accept_quorum_reached() ->
+        Proposal = #proposal{value = v},
+        ?assertMatch(
+            {stop, normal, _},
+            proposer:awaiting_accepts(
+                {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
+            )
+        ).
 
-should_notify_client_of_result() ->
-    Proposal = #proposal{value = v},
-    ReplyTo = nspy:mock(),
-    proposer:awaiting_accepts(
-        {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=ReplyTo}
-    ),
-    timer:sleep(2),
-    nspy:assert_message_received(ReplyTo, {learned, v}).
+    should_notify_client_of_result() ->
+        Proposal = #proposal{value = v},
+        ReplyTo = nspy:mock(),
+        proposer:awaiting_accepts(
+            {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=ReplyTo}
+        ),
+        timer:sleep(2),
+        nspy:assert_message_received(ReplyTo, {learned, v}).
 
 %%% =============================
 %%% Test Helpers
