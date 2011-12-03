@@ -1,8 +1,9 @@
 -record(state, {
-  elections = []
+    oldest_remembered_state = 0,
+    elections = []
 }).
 
 -record(election, {
-  promised = 0,
-  accepted = no_value
+    promised = 0,
+    accepted = no_value
 }).

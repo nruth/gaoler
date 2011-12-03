@@ -8,6 +8,7 @@
 -define(PROMISED(N), #election{promised=N}).
 -define(PROMISED_AND_ACCEPTED(N, A), #election{promised=N, accepted=A}).
 
+%%%=
 promise_requests_test_() -> 
     [
      fun should_send_promise_when_no_higher_promises_made/0,
@@ -58,6 +59,7 @@ should_not_change_accepted_when_lower_round_accept_requested() ->
     ?assertMatch({_, _, ?ONE_ELECTION(#election{accepted = prev})}, Result).
 
 
+
 accept_request_replies_test_() -> 
     [
      fun should_reply_accept_for_promised_round/0,
@@ -85,3 +87,32 @@ should_reply_reject_to_lower_round_than_promised() ->
     Proposal = {accept, {1,5}, v},
     Result = acceptor:handle_call(Proposal, Sender, InitialState),
     ?assertMatch({reply, {reject, 5}, _}, Result).
+
+
+% see van Renesse's "Paxos Made Moderately Complex" sec 4.2
+acceptor_garbage_collection_test_() ->
+    [
+        fun should_record_last_gc_performed/0,
+        fun should_remove_older_elements_from_state/0,
+        fun should_retain_newer_elements_in_state/0,
+        fun should_leave_no_elections_intact/0
+    ].
+
+should_record_last_gc_performed() ->
+    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 14}, ?NO_ELECTIONS),
+    ?assertEqual(14, NewState#state.oldest_remembered_state).
+
+should_remove_older_elements_from_state() ->
+    State = #state{elections=[{3, a}, {2,z}, {1, a}]},
+    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 4}, State),
+    ?assertEqual([], NewState#state.elections).
+
+should_retain_newer_elements_in_state() ->
+    State = #state{elections=[{3, a}, {2,z}, {1, a}]},
+    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 2}, State),
+    ?assertEqual([{3, a}, {2,z}], NewState#state.elections).
+
+should_leave_no_elections_intact() ->
+    State = ?NO_ELECTIONS,
+    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 2}, State),
+    ?assertEqual([], NewState#state.elections).

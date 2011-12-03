@@ -58,6 +58,10 @@ handle_call({prepare, {ElectionId, Round}}, _From, State) ->
 handle_call({accept, {ElectionId, Round}, Value}, _From, State) ->
     handle_accept({ElectionId, Round}, Value, State).
 
+handle_cast({gc_older_than, ElectionId}, State) ->
+    {noreply, garbage_collect_elections_older_than(ElectionId, State)};
+handle_cast(stop, State) -> {stop, normal, State}.
+
 %%%===================================================================
 %%% Prepare requests
 %%%=================================================================== 
@@ -128,10 +132,16 @@ update_election(ElectionId, NewElection, State) ->
                          {ElectionId, NewElection}),
     State#state{elections = UpdatedElections}.
 
+garbage_collect_elections_older_than(OldestNeededElectionId, State) ->
+    NeededElectionPredicate = fun({ElectionId, _}) -> 
+        ElectionId >= OldestNeededElectionId
+    end,
+    UpdatedElections = lists:takewhile(NeededElectionPredicate, State#state.elections),
+    State#state{elections = UpdatedElections, oldest_remembered_state = OldestNeededElectionId}.
+
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
 %%%===================================================================
-handle_cast(stop, State) -> {stop, normal, State}.
 handle_info(_Info, State) -> {noreply, State}.
 terminate(_Reason, _State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
