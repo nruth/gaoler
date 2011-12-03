@@ -36,14 +36,14 @@ stop(Name) ->
 %%--------------------------------------------------------------------
 %% @doc Request that the acceptor promises not to vote on older rounds
 %%--------------------------------------------------------------------
-prepare(Acceptor, Round) ->
-  gen_server:call(Acceptor, {prepare, {1, Round}}).
+prepare(Acceptor, {Election,Round}) ->
+  gen_server:call(Acceptor, {prepare, {Election, Round}}).
 
 %%--------------------------------------------------------------------
 %% @doc Request that the acceptor votes for the proposal
 %%--------------------------------------------------------------------
-accept(Acceptor, Round, Value) ->
-  gen_server:call(Acceptor, {accept, {1, Round}, Value}).
+accept(Acceptor, {Election,Round}, Value) ->
+  gen_server:call(Acceptor, {accept, {Election, Round}, Value}).
 
 %%%===================================================================
 %%% Implementation

@@ -22,17 +22,20 @@ start_link() ->
 % Start the frontend service gaoler and the internal paxos components 
 % (acceptor, learner) in a bundle called a house. 
 % 
-%          gaoler_sup
-%           /      \
-%     house_sup    gaoler
+%              gaoler_sup
+%           /      \       \
+%     house_sup    gaoler  ticket_machine
 %     /       \
-% acceptor   learner
+% acceptor   cache
 %
 init([]) ->
     GaolerService = {gaoler, {gaoler, start_link, []},
 		     permanent, 2000, worker, [gaoler]},
 
+    TicketMachine = {ticket_machine, {ticket_machine, start_link, []},
+		     permanent, 2000, worker, [ticket_machine]},
+
     HouseSup = {house_sup, {house_sup, start_link, []},
 		permanent, 2000, supervisor, [house_sup]},
 
-    {ok, {?SUPFLAGS, [GaolerService, HouseSup]}}.
+    {ok, {?SUPFLAGS, [GaolerService, HouseSup, TicketMachine]}}.

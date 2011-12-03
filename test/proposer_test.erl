@@ -21,28 +21,30 @@ startup_behaviour_test_() -> {foreach, fun setup/0, fun teardown/1, [
     fun should_broadcast_prepare_request/0
 ]}.
 
-    awaiting_promises() ->
-        ?assertMatch({ok, awaiting_promises, _}, proposer:init([foo, self()])).
+awaiting_promises() ->
+    ?assertMatch({ok, awaiting_promises, _}, proposer:init([1, foo, self()])).
 
-    starts_with_round_1() ->
-        ?assertMatch({ok, _, #state{round=1}}, proposer:init([foo, self()])).
+starts_with_round_1() ->
+    ?assertMatch({ok, _, #state{round=1}}, proposer:init([1, foo, self()])).
 
-    starts_with_0_promises() ->
-        ?assertMatch({ok, _, #state{promises=0}}, proposer:init([foo, self()])).
+starts_with_0_promises() ->
+    ?assertMatch({ok, _, #state{promises=0}}, proposer:init([1, foo, self()])).
 
-    remembers_proposal() ->
-        Proposal = foo,
-        {ok, _, State} = proposer:init([Proposal, self()]),
-        Value = State#state.value#proposal.value,
-        ?assertEqual(Proposal, Value).
+remembers_proposal() ->
+    Proposal = foo,
+    Election = 1,
+    {ok, _, State} = proposer:init([Election, Proposal, self()]),
+    Value = State#state.value#proposal.value,
+    ?assertEqual(Proposal, Value).
 
-    remembers_reply_to_pid() ->
-        ReplyTo = self(),
-        ?assertMatch({ok, _, #state{reply_to=ReplyTo}}, proposer:init([foo, ReplyTo])).
+remembers_reply_to_pid() ->
+    ReplyTo = self(),
+    ?assertMatch({ok, _, #state{reply_to=ReplyTo}}, proposer:init([1, foo, ReplyTo])).
 
-    should_broadcast_prepare_request() ->
-        proposer:init([val, self()]),
-        ?assert(meck:called(acceptors, send_promise_requests, [self(), _Round=1])).
+should_broadcast_prepare_request() ->
+    proposer:init([1, val, self()]),
+    ?assert(meck:called(acceptors, send_promise_requests, 
+                        [self(), _Round={1,1}])).
 
 
 %%% =============================
@@ -186,9 +188,11 @@ awaiting_accepts_reject_quorum_test_() -> {foreach, fun setup/0, fun teardown/1,
             )
         ).
 
-    should_broadcast_new_prepare_request_on_reject_quorum() ->
-        proposer:awaiting_accepts({rejected, 10}, #state{rejects = 2, round = 10}),
-        ?assert(meck:called(acceptors, send_promise_requests, [self(), _Round=12])).
+should_broadcast_new_prepare_request_on_reject_quorum() ->
+    InitialState = #state{rejects = 2, round = 10, election=1},
+    proposer:awaiting_accepts({rejected, 10}, InitialState),
+    ?assert(meck:called(acceptors, send_promise_requests, 
+                        [self(), _Round={1, 12}])).
 
 
 awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [

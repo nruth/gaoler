@@ -5,10 +5,10 @@
 
 %% API
 -export([
-    start_link/2,
+    start_link/3,
     deliver_promise/2,
     deliver_accept/2,
-    propose/1
+    propose/2
     ]).
 
 %% gen_fsm callbacks
@@ -36,12 +36,11 @@
 %% begins an election where the proposer will seek
 %% concensus on a value, proposing Proposal if no
 %% other value has already been accepted by a majority
-propose(Proposal) ->
-    % TODO: is start_link appropriate? what about proc failures?
-    ?MODULE:start_link(Proposal, self()).
+propose(Election, Proposal) ->
+    ?MODULE:start_link(Election, Proposal, self()).
 
-start_link(Proposal, ReplyPid) ->
-    gen_fsm:start_link(?MODULE, [Proposal, ReplyPid], []).
+start_link(Election, Proposal, ReplyPid) ->
+    gen_fsm:start_link(?MODULE, [Election, Proposal, ReplyPid], []).
 
 deliver_promise(Proposer, AcceptorReply) ->
     gen_fsm:send_event(Proposer, AcceptorReply).
@@ -53,22 +52,24 @@ deliver_accept(Proposer, AcceptorReply) ->
 %%% gen_fsm callbacks
 %%%===================================================================
 
-init([Proposal, ReplyPid]) ->
+init([Election, Proposal, ReplyPid]) ->
     Round = 1,
-    acceptors:send_promise_requests(self(), Round),
+    acceptors:send_promise_requests(self(), {Election,Round}),
     {ok, awaiting_promises, #state{
-        round = Round, 
-        value=#proposal{value = Proposal},
-        reply_to = ReplyPid
+           election = Election,
+           round = Round, 
+           value=#proposal{value = Proposal},
+           reply_to = ReplyPid
     }}.
 
 % on discovering a higher round has been promised
 awaiting_promises({promised, PromisedRound, _}, State) 
     when PromisedRound > State#state.round -> % restart with Round+1 
-    NextRound = PromisedRound + 1,
+    NextRound = PromisedRound + 1, 
     NewState = State#state{round = NextRound, promises = 0},
     % TODO: add exponential backoff
-    acceptors:send_promise_requests(self(), NextRound),
+    acceptors:send_promise_requests(self(), {NewState#state.election,
+                                             NextRound}),
     {next_state, awaiting_promises, NewState};
         
 % on receiving a promise without past-vote data
@@ -94,7 +95,9 @@ awaiting_promises(_, State) ->
 % majority reached
 loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) ->
     Proposal = State#state.value#proposal.value,
-    acceptors:send_accept_requests(self(), State#state.round, Proposal),
+    acceptors:send_accept_requests(self(), 
+                                   {State#state.election, State#state.round}, 
+                                   Proposal),
     {next_state, awaiting_accepts, State};
 
 loop_until_promise_quorum(State) -> % keep waiting
@@ -104,14 +107,13 @@ loop_until_promise_quorum(State) -> % keep waiting
 
 awaiting_accepts({rejected, Round}, #state{round = Round, rejects = 2}=State) ->
     RetryRound = Round + 2,
-    acceptors:send_promise_requests(self(), RetryRound),
+    acceptors:send_promise_requests(self(), {State#state.election, RetryRound}),
     {next_state, awaiting_promises, State#state{round = RetryRound, promises = 0}};
 
 awaiting_accepts({rejected, Round}, #state{round=Round}=State) ->
     {next_state, awaiting_accepts, State#state{rejects = State#state.rejects + 1}};
 
 awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
-    io:format("Got accept ~n", []),
     NewState = State#state{accepts = State#state.accepts + 1},
     case NewState#state.accepts >= ?MAJORITY of
     false ->
@@ -119,7 +121,6 @@ awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
     true ->
         % deliver result to coordinator
         LearnedValue = State#state.value#proposal.value,
-            io:format("Reached majority ~n", []),
         NewState#state.reply_to ! {learned, LearnedValue},
         {stop, normal, NewState}
     end;
