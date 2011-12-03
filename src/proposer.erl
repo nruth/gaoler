@@ -114,7 +114,6 @@ awaiting_accepts({rejected, Round}, #state{round=Round}=State) ->
     {next_state, awaiting_accepts, State#state{rejects = State#state.rejects + 1}};
 
 awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
-    io:format("Got accept ~n", []),
     NewState = State#state{accepts = State#state.accepts + 1},
     case NewState#state.accepts >= ?MAJORITY of
     false ->
@@ -122,7 +121,6 @@ awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
     true ->
         % deliver result to coordinator
         LearnedValue = State#state.value#proposal.value,
-            io:format("Reached majority ~n", []),
         NewState#state.reply_to ! {learned, LearnedValue},
         {stop, normal, NewState}
     end;
