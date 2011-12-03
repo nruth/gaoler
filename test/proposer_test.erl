@@ -163,6 +163,33 @@ should_not_increment_accepts_when_accept_for_another_round_received() ->
     ?assertEqual(0, Accepts).
 
 %%% =============================
+%%% reaching accept quorum
+%%% =============================
+awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
+    fun should_halt_when_accept_quorum_reached/0,
+    fun should_notify_client_of_result/0
+]}.
+
+should_halt_when_accept_quorum_reached() ->
+    Proposal = #proposal{value = v},
+    ?assertMatch(
+        {stop, normal, _},
+        proposer:awaiting_accepts(
+            {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
+        )
+    ).
+
+should_notify_client_of_result() ->
+    Proposal = #proposal{value = v},
+    ReplyTo = nspy:mock(),
+    proposer:awaiting_accepts(
+        {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=ReplyTo}
+    ),
+    timer:sleep(2),
+    nspy:assert_message_received(ReplyTo, {learned, v}).
+
+
+%%% =============================
 %%% counting reject messages
 %%% =============================
 awaiting_accepts_count_reject_test_() -> 
@@ -211,31 +238,6 @@ should_broadcast_new_prepare_request_on_reject_quorum() ->
                         [self(), _Round={1, 12}])).
 
 
-%%% =============================
-%%% reaching accept quorum
-%%% =============================
-awaiting_accepts_accept_quorum_test_() -> {foreach, fun setup/0, fun teardown/1, [
-    fun should_halt_when_accept_quorum_reached/0,
-    fun should_notify_client_of_result/0
-]}.
-
-should_halt_when_accept_quorum_reached() ->
-    Proposal = #proposal{value = v},
-    ?assertMatch(
-        {stop, normal, _},
-        proposer:awaiting_accepts(
-            {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=self()}
-        )
-    ).
-
-should_notify_client_of_result() ->
-    Proposal = #proposal{value = v},
-    ReplyTo = nspy:mock(),
-    proposer:awaiting_accepts(
-        {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=ReplyTo}
-    ),
-    timer:sleep(2),
-    nspy:assert_message_received(ReplyTo, {learned, v}).
 
 %%% =============================
 %%% Test Helpers
