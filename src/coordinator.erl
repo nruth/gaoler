@@ -1,6 +1,6 @@
 -module (coordinator).
 
--export([get/0, put/2]).
+-export([get/0, put/3]).
 
 %% will return either:
 %%  - the agreed value
@@ -35,16 +35,16 @@ get() ->
 %%          - Acceptor persists the (highest) round number and chosen value
 %%          - Learner -> Coordinator the chosen value
 
-put(Proposal, Timeout) ->
+put(Election, Proposal, Timeout) ->
     case learner:get() of
         {learned, Value} -> {ok, Value};
-        unknown -> paxos(Proposal, Timeout);
+        unknown -> paxos(Election, Proposal, Timeout);
         Else -> error({undefined, Else})
     end.
 
 %% makes a proposal and waits for the outcome
-paxos(Proposal, Timeout) ->
-    ProposerPid = proposer:propose(Proposal),
+paxos(Election, Proposal, Timeout) ->
+    ProposerPid = proposer:propose(Election, Proposal),
     {ok, _} = timer:kill_after(Timeout, ProposerPid),
     receive {learned, Value} -> 
         {ok, Value}
