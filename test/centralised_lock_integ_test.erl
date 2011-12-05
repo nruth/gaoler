@@ -11,4 +11,6 @@ lock_test() ->
     nspy:assert_message_received(Mock, lock),
 
     centralised_lock:release(Mock),
-    ?assert( queue:is_empty(centralised_lock:get_queue()) ).
+    ?assert( queue:is_empty(centralised_lock:get_queue()) ),
+    
+    centralised_lock:stop().

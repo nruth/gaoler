@@ -1,23 +1,27 @@
 -module (centralised_lock).
--export ([acquire/1, release/1, get_queue/0]).
+-export ([acquire/1, release/1, get_queue/0, stop/0]).
 
 -behaviour(gen_server).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -record (state, {queue = undefined}).
+-define (SERVER, ?MODULE).
 
 %%% API
 start_link() ->
-    gen_server:start_link({local, lock_service}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 acquire (Client) ->
-    gen_server:call(lock_service, {acquire, Client}).
+    gen_server:call(?SERVER, {acquire, Client}).
 
 release (Client) ->
-    gen_server:call(lock_service, {release, Client}).
+    gen_server:call(?SERVER, {release, Client}).
 
 get_queue() -> 
-    gen_server:call(lock_service, get_queue).
+    gen_server:call(?SERVER, get_queue).
+    
+stop() ->
+    gen_server:cast(?SERVER, stop).
 
 %%% internals
 

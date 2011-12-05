@@ -34,8 +34,12 @@ init([]) ->
 
     TicketMachine = {ticket_machine, {ticket_machine, start_link, []},
 		     permanent, 2000, worker, [ticket_machine]},
+		     
+	HouseSup = {house_sup, {house_sup, start_link, []},
+             permanent, 2000, supervisor, [house_sup]},
+             
+	% Centralised Lock Service
+	CentralisedLockService = {centralised_lock, {centralised_lock, start_link, []},
+		     permanent, 2000, worker, [centralised_lock]},
 
-    HouseSup = {house_sup, {house_sup, start_link, []},
-		permanent, 2000, supervisor, [house_sup]},
-
-    {ok, {?SUPFLAGS, [GaolerService, HouseSup, TicketMachine]}}.
+    {ok, {?SUPFLAGS, [GaolerService, HouseSup, TicketMachine, CentralisedLockService]}}.
