@@ -26,7 +26,7 @@ stop() ->
 %%% internals
 
 % starts with empty data store
-init([]) -> {ok, #state{queue = queue:new()}}.
+init([]) -> {ok, #state{queue = new_queue()}}.
 
 handle_call({acquire, Client}, _From, State) ->
     {reply, ok, acquire(Client, State)};
@@ -42,20 +42,20 @@ handle_cast(stop, State) ->
 %% give them the lock if nobody else was waiting
 acquire(Client, State) ->
     Queue = State#state.queue,
-    case queue:is_empty(Queue) of
+    case is_empty(Queue) of
         true -> send_lock(Client);
         false -> noop
     end,
-    NewQueue = queue:in(Client, Queue),
+    NewQueue = append(Client, Queue),
     State#state{queue=NewQueue}.
 
 %% give the current lock holder from the queue
 %%  and give the lock to the next in queue (if any)
 release(_Client, State) ->
-    case queue:out(State#state.queue) of
+    case pop_head(State#state.queue) of
         {{value, _Releasing}, NewQueue} ->
             %remove lock, send new if any
-            case queue:peek(NewQueue) of
+            case current_lock_holder(NewQueue) of
                 {value, NextLockHolder} ->
                     send_lock(NextLockHolder);
                 empty -> 
@@ -70,6 +70,27 @@ release(_Client, State) ->
 send_lock(Receiver) ->
     Receiver ! lock.
 
+%%% Internals
+
+%% returns true or false 
+is_empty(Queue) ->
+    queue:is_empty(Queue).
+
+%% obeys queue:peek api
+%% returns {value, QueueHead} or empty
+current_lock_holder(Queue) ->
+    queue:peek(Queue).
+
+new_queue() ->
+    queue:new().
+
+append(Elem, Queue) ->
+    queue:in(Elem, Queue).
+
+%% mimics queue:out api
+%% returns {empty, EmptyQueue} or {{value, Head}, QueueTail}
+pop_head(Queue) ->
+    queue:out(Queue).
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
