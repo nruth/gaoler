@@ -1,4 +1,6 @@
 -module (centralised_lock).
+-include_lib("queue_lib.hrl").
+
 -export ([acquire/1, release/1, get_queue/0, stop/0]).
 
 -behaviour(gen_server).
@@ -26,7 +28,7 @@ stop() ->
 %%% internals
 
 % starts with empty data store
-init([]) -> {ok, #state{queue = new_queue()}}.
+init([]) -> {ok, #state{queue = ?QUEUE_LIB:new()}}.
 
 handle_call({acquire, Client}, _From, State) ->
     {reply, ok, acquire(Client, State)};
@@ -42,20 +44,20 @@ handle_cast(stop, State) ->
 %% give them the lock if nobody else was waiting
 acquire(Client, State) ->
     Queue = State#state.queue,
-    case is_empty(Queue) of
+    case ?QUEUE_LIB:is_empty(Queue) of
         true -> send_lock(Client);
         false -> noop
     end,
-    NewQueue = append(Client, Queue),
+    NewQueue = ?QUEUE_LIB:append(Client, Queue),
     State#state{queue=NewQueue}.
 
 %% give the current lock holder from the queue
 %%  and give the lock to the next in queue (if any)
 release(_Client, State) ->
-    case pop_head(State#state.queue) of
+    case ?QUEUE_LIB:pop_head(State#state.queue) of
         {{value, _Releasing}, NewQueue} ->
             %remove lock, send new if any
-            case current_lock_holder(NewQueue) of
+            case ?QUEUE_LIB:head(NewQueue) of
                 {value, NextLockHolder} ->
                     send_lock(NextLockHolder);
                 empty -> 
@@ -72,25 +74,7 @@ send_lock(Receiver) ->
 
 %%% Internals
 
-%% returns true or false 
-is_empty(Queue) ->
-    queue:is_empty(Queue).
 
-%% obeys queue:peek api
-%% returns {value, QueueHead} or empty
-current_lock_holder(Queue) ->
-    queue:peek(Queue).
-
-new_queue() ->
-    queue:new().
-
-append(Elem, Queue) ->
-    queue:in(Elem, Queue).
-
-%% mimics queue:out api
-%% returns {empty, EmptyQueue} or {{value, Head}, QueueTail}
-pop_head(Queue) ->
-    queue:out(Queue).
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate

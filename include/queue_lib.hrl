@@ -1,0 +1,1 @@
+-define (QUEUE_LIB, lib_queue_list).
