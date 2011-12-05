@@ -1,5 +1,5 @@
 -module (lib_queue_list).
--export ([is_empty/1, head/1, new/0, append/2, pop_head/1]).
+-export ([is_empty/1, peek/1, new/0, in/2, out/1]).
 
 %% returns true or false 
 is_empty([]) ->
@@ -9,23 +9,24 @@ is_empty(_Queue) ->
 
 new() -> [].
 
-append(Elem, Queue) ->
+%% append to queue
+in(Elem, Queue) ->
     Queue ++ [Elem].
 
 
 %% obeys queue:peek api
 %% returns {value, QueueHead} or empty
-head([]) -> 
+peek([]) -> 
     empty;
-head([Head|_]) -> 
+peek([Head|_]) -> 
     {value, Head}.
 
 
-%% mimics queue:out api
+%% mimics queue:out; pops queue head
 %% returns {empty, EmptyQueue} or {{value, Head}, QueueTail}
-pop_head([]) -> 
+out([]) -> 
     {empty, []};
-pop_head([Head|QueueTail]) ->
+out([Head|QueueTail]) ->
     {{value, Head}, QueueTail}.
 
 

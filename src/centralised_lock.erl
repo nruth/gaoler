@@ -48,16 +48,16 @@ acquire(Client, State) ->
         true -> send_lock(Client);
         false -> noop
     end,
-    NewQueue = ?QUEUE_LIB:append(Client, Queue),
+    NewQueue = ?QUEUE_LIB:in(Client, Queue),
     State#state{queue=NewQueue}.
 
 %% give the current lock holder from the queue
 %%  and give the lock to the next in queue (if any)
 release(_Client, State) ->
-    case ?QUEUE_LIB:pop_head(State#state.queue) of
+    case ?QUEUE_LIB:out(State#state.queue) of
         {{value, _Releasing}, NewQueue} ->
             %remove lock, send new if any
-            case ?QUEUE_LIB:head(NewQueue) of
+            case ?QUEUE_LIB:peek(NewQueue) of
                 {value, NextLockHolder} ->
                     send_lock(NextLockHolder);
                 empty -> 
