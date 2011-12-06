@@ -8,5 +8,9 @@
                   stdlib
                  ]},
   {mod, { gaoler_app, []}},
-  {env, [{nodes, []}]}
+  {env, [{nodes, ['test1@archie-laptop',
+  		  'test2@archie-laptop',
+		  'test3@archie-laptop',
+		  'test4@archie-laptop',
+		  'test5@archie-laptop']}]}
  ]}.

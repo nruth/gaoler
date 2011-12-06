@@ -7,7 +7,7 @@
 -export([
 	 start_link/0, 
 	 get_acceptors/0,
-         request/2,
+         acquire/1,
 	 join/0,
 	 stop/0
 	]).
@@ -20,7 +20,7 @@
 	 handle_info/2,
 	 terminate/2, 
 	 code_change/3,
-         do_handle_acquire/3
+         handle_operation/1
 	]).
 
 -define(SERVER, ?MODULE). 
@@ -33,8 +33,23 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-request(Resource, Client) ->
-    handle_acquire(Resource, Client).
+acquire(Client) ->
+    spawn_link(fun() -> ?MODULE:handle_operation({acquire, Client}) end),
+    ok.
+
+handle_operation(Operation) ->            
+    {ok, Ticket} = ticket_machine:next(),
+    case coordinator:put(Ticket, Operation, 1000) of 
+        {ok, Operation} ->
+            % deliver lock to all replicas
+            % should use the replicated_lock:deliver/1 function
+            gen_server:abcast(replicated_lock, {deliver, {Ticket, Operation}});
+        {taken, _OperationInSlot} ->
+             % someone else got the lock, try again with a higher number
+            handle_operation(Operation);
+        {error, _}=Error ->
+            Error
+    end.
 
 join() ->
     gen_server:abcast(?SERVER, {join, node()}). 
@@ -88,28 +103,3 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-handle_acquire(Resource, Client) ->
-    Parent = self(),
-    spawn(fun() ->
-                  ?MODULE:do_handle_acquire(Resource, Client, Parent)
-          end),
-    receive
-        {resource, Resource, _}=Result ->
-            Result
-    after 1000 ->
-            {error, timed_out}
-    end.
-            
-
-do_handle_acquire(Resource, Client, Parent) ->
-    {ok, Ticket} = ticket_machine:next(),
-    case coordinator:put(Ticket, Client, 1000) of 
-        {ok, Client} ->
-            Parent ! {resource, Resource, {Client, Ticket}};
-        %% {ok, _OtherNumber} ->
-        %%     % someone else got the lock, try again (with backoff time)
-        %%     handle_acquire(Resource);
-        {error, _}=Error ->
-            Error
-    end.

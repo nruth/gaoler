@@ -14,11 +14,13 @@
 request(Operation) ->
     Client = self(),
     UniqueRef = make_ref(),
-    gen_server:abcast(?SERVER, {request, {Client, UniqueRef, Operation}}),
+    [{?SERVER, Node} ! {request, {Client, UniqueRef, Operation}} ||
+        Node <- [node()|nodes()]],
     receive
         {response, UniqueRef, Result} ->
             {ok, Result}
-    % TODO: add timeout?
+    after 1000 ->
+            timeout
     end.
     
 %%% Replica 
@@ -55,6 +57,7 @@ loop(State) ->
     receive
         {request, Command} ->
             NewState = propose(Command, State),
+            io:format("proposing ~p~n", [Command]),
             loop(NewState);
         {decision, Slot, Command} ->
             NewStateA = add_decision_to_state({Slot, Command}, State),
