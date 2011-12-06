@@ -12,6 +12,7 @@ start() ->
     start(nil, nil).
 
 start(_StartType, _StartArgs) ->
+    replica:start(centralised_lock),
     gaoler_sup:start_link().
 
 stop(_State) ->

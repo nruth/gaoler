@@ -1,13 +1,12 @@
 -module(replica).
 -export([request/1]).
--export([loop/1, start/2]).
+-export([loop/1, start/1]).
 
 -record(replica, {slot_num = 1,
                   proposals = [],
                   decisions = [],
-                  state = undefined,
-                  application = centralised_lock,
-                  leaders = undefined}).
+                  application = undefined
+                  }).
 
 -define (SERVER, ?MODULE).
 
@@ -23,9 +22,9 @@ request(Operation) ->
     end.
     
 %%% Replica 
-start(Leaders, InitialState) ->
+start(LockApplication) ->
     process_flag(trap_exit, true),
-    ReplicaState = #replica{state=InitialState, leaders=Leaders},
+    ReplicaState = #replica{application=LockApplication},
     register(replica, spawn_link(fun() -> loop(ReplicaState) end)).    
 
 slot_for_next_proposal(#replica{proposals=Proposals, decisions=Decisions}) ->
@@ -91,9 +90,9 @@ perform({Client, UniqueRef, Operation}, State) ->
         true ->
             tick_slot_number(State);
         false ->
-            Result = (catch (State#replica.application):Operation(Client)),
+            ResultFromFunction = (catch (State#replica.application):Operation(Client)),
             NewState = tick_slot_number(State),
-            Client ! {response, UniqueRef, {Operation, Result}},
+            Client ! {response, UniqueRef, {Operation, ResultFromFunction}},
             NewState
     end.
 

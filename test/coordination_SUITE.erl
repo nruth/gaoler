@@ -13,10 +13,7 @@
 
 % Specify a list of all unit test functions
 all() -> [
-          coordinator_no_proposed_value_test,
-          coordinator_put_new_proposal_test,
-          single_request_test,
-          multiple_requests_test
+          single_request_test
          ].
 
 init_per_suite(Config) ->
@@ -63,28 +60,6 @@ clean_up_logdirectory() ->
 %%%%%%%%%%%%%%%%
 %% test cases %%
 %%%%%%%%%%%%%%%%
-
-coordinator_no_proposed_value_test(_Config) ->
-    unknown = coordinator:get().
-
-
-coordinator_put_new_proposal_test(_Config) ->
-    Value = my_value,
-    {ok, Election} = ticket_machine:next(),
-    {ok, Value} = coordinator:put(Election, Value, 1000).
-
-% TODO: add testing for caching
-
    
 single_request_test(_Config) ->
-    Beer = beer, Client = client,
-    {resource, Beer, {Client, 1}} = gaoler:request(Beer, Client).
-
-
-multiple_requests_test(_Config) ->
-    Beer = beer, Client = client,
-    {resource, Beer, {Client, 1}} = gaoler:request(Beer, Client),
-    {resource, Beer, {Client, 2}} = gaoler:request(Beer, Client),
-    {resource, Beer, {Client, 3}} = gaoler:request(Beer, Client),
-    {resource, Beer, {Client, 4}} = gaoler:request(Beer, Client).
-    
+    {ok, {acquire, _}} = replica:request(acquire).
