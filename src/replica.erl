@@ -1,12 +1,13 @@
 -module(replica).
 -export([request/1]).
--export([loop/2, start/2]).
+-export([loop/1, start/2]).
 
 -record(replica, {slot_num = 1,
                   proposals = [],
                   decisions = [],
                   state = undefined,
-                  application = centralised_lock}).
+                  application = centralised_lock,
+                  leaders = undefined}).
 
 -define (SERVER, ?MODULE).
 
@@ -23,23 +24,46 @@ request(Operation) ->
     
 %%% Replica 
 start(Leaders, InitialState) ->
-    ReplicaState = #replica{state=InitialState},
-    register(replica, spawn_link(fun() -> loop(Leaders, ReplicaState) end)).    
+    process_flag(trap_exit, true),
+    ReplicaState = #replica{state=InitialState, leaders=Leaders},
+    register(replica, spawn_link(fun() -> loop(ReplicaState) end)).    
 
-propose(_) ->
-    error(writeme).
+slot_for_next_proposal(#replica{proposals=Proposals, decisions=Decisions}) ->
+    MaxSlotFn = fun({Slot, _Command}, Highest) -> max(Slot, Highest) end,
+    MaxPropSlot = lists:foldl(MaxSlotFn, 0, Proposals),
+    HighSlot = lists:foldl(MaxSlotFn, MaxPropSlot, Decisions),
+    1 + HighSlot.
 
-loop(Leaders, State) ->
+propose(Command, State) ->
+    case is_command_already_decided(Command, State) of 
+        false ->
+            Proposal = {slot_for_next_proposal(State), Command},
+            send_to_leaders(Proposal, State),
+            add_proposal_to_state(Proposal, State);
+        true ->
+            State
+    end.
+
+is_command_already_decided(Command, State) ->
+    lists:any(
+        fun({_S, DecidedCommand}) -> 
+            Command == DecidedCommand 
+        end, 
+        State#replica.decisions
+    ).
+
+loop(State) ->
     receive
         {request, Command} ->
-            propose(Command),
-            loop(Leaders, State);
+            NewState = propose(Command, State),
+            loop(NewState);
         {decision, Slot, Command} ->
-            NewState = State#replica{
-                decisions=add_decision({Slot, Command}, State#replica.decisions)
-            },
-            UpdatedState = consume_decisions(NewState),
-            loop(Leaders, UpdatedState)
+            NewStateA = add_decision_to_state({Slot, Command}, State),
+            NewStateB = consume_decisions(NewStateA),
+            loop(NewStateB);
+        {'EXIT', _FromPid, _Reason} ->
+            'a proposal crashed or exited',
+            loop(State)
     end.
 
 consume_decisions(State) ->
@@ -58,7 +82,7 @@ handle_proposal_preemption(State) ->
         false ->
             State;
         {_Slot, ConflictingCommand} ->
-            propose(ConflictingCommand)
+            propose(ConflictingCommand, State)
     end.
     
 perform({Client, UniqueRef, Operation}, State) ->
@@ -67,14 +91,22 @@ perform({Client, UniqueRef, Operation}, State) ->
         true ->
             tick_slot_number(State);
         false ->
-            (State#replica.application):Operation(Client),            
+            Result = (catch (State#replica.application):Operation(Client)),
             NewState = tick_slot_number(State),
-            Client ! {response, UniqueRef, Operation},
+            Client ! {response, UniqueRef, {Operation, Result}},
             NewState
     end.
 
 tick_slot_number(State) ->
     State#replica{slot_num=State#replica.slot_num + 1}.
 
-add_decision(SlotCommand, Decisions) ->
-    [SlotCommand | Decisions].
+add_decision_to_state(SlotCommand, State) ->
+    State#replica{ decisions = [SlotCommand | State#replica.decisions] }.
+
+add_proposal_to_state(Proposal, State) ->
+    State#replica{ proposals = [Proposal | State#replica.proposals] }.
+
+send_to_leaders(Proposal, _State) ->
+    % TODO: make proposer use {decision, Slot, Command} ->
+    proposer:propose(Proposal).
+    
