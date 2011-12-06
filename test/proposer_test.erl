@@ -183,10 +183,11 @@ should_notify_client_of_result() ->
     Proposal = #proposal{value = v},
     ReplyTo = nspy:mock(),
     proposer:awaiting_accepts(
-        {accepted, 10, v}, #state{accepts = 2, round = 10, value = Proposal, reply_to=ReplyTo}
+        {accepted, 10, v}, #state{election = 1, accepts = 2, 
+                                  round = 10, value = Proposal, reply_to=ReplyTo}
     ),
     timer:sleep(2),
-    nspy:assert_message_received(ReplyTo, {learned, v}).
+    nspy:assert_message_received(ReplyTo, {decision, 1, v}).
 
 
 %%% =============================

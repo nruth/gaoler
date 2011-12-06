@@ -8,7 +8,7 @@
     start_link/3,
     deliver_promise/2,
     deliver_accept/2,
-    propose/2
+    propose/1
     ]).
 
 %% gen_fsm callbacks
@@ -36,8 +36,8 @@
 %% begins an election where the proposer will seek
 %% concensus on a value, proposing Proposal if no
 %% other value has already been accepted by a majority
-propose(Election, Proposal) ->
-    ?MODULE:start_link(Election, Proposal, self()).
+propose({Slot, Proposal}) ->
+    ?MODULE:start_link(Slot, Proposal, self()).
 
 start_link(Election, Proposal, ReplyPid) ->
     gen_fsm:start_link(?MODULE, [Election, Proposal, ReplyPid], []).
@@ -120,8 +120,9 @@ awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
         {next_state, awaiting_accepts, NewState};
     true ->
         % deliver result to coordinator
-        LearnedValue = State#state.value#proposal.value,
-        NewState#state.reply_to ! {learned, LearnedValue},
+        NewState#state.reply_to ! {decision, 
+                                    State#state.election, 
+                                    State#state.value#proposal.value},
         {stop, normal, NewState}
     end;
 

@@ -107,6 +107,5 @@ add_proposal_to_state(Proposal, State) ->
     State#replica{ proposals = [Proposal | State#replica.proposals] }.
 
 send_to_leaders(Proposal, _State) ->
-    % TODO: make proposer use {decision, Slot, Command} ->
     proposer:propose(Proposal).
     
