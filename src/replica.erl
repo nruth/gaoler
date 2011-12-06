@@ -5,7 +5,8 @@
 -record(replica, {slot_num = 1,
                   proposals = [],
                   decisions = [],
-                  state = undefined}).
+                  state = undefined,
+                  application = centralised_lock}).
 
 -define (SERVER, ?MODULE).
 
@@ -17,6 +18,7 @@ request(Operation) ->
     receive
         {response, UniqueRef, Result} ->
             {ok, Result}
+    % TODO: add timeout?
     end.
     
 %%% Replica 
@@ -26,7 +28,6 @@ start(Leaders, InitialState) ->
 
 propose(_) ->
     error(writeme).
-
 
 loop(Leaders, State) ->
     receive
@@ -60,8 +61,20 @@ handle_proposal_preemption(State) ->
             propose(ConflictingCommand)
     end.
     
-perform(_Command, _State) ->
-    error(writeme).
+perform({Client, UniqueRef, Operation}, State) ->
+    FunFilter = fun({S, _Operation}) -> S < State#replica.slot_num end,
+    case lists:any(FunFilter, State#replica.decisions) of
+        true ->
+            tick_slot_number(State);
+        false ->
+            (State#replica.application):Operation(Client),            
+            NewState = tick_slot_number(State),
+            Client ! {response, UniqueRef, Operation},
+            NewState
+    end.
+
+tick_slot_number(State) ->
+    State#replica{slot_num=State#replica.slot_num + 1}.
 
 add_decision(SlotCommand, Decisions) ->
     [SlotCommand | Decisions].
