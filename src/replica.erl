@@ -36,8 +36,8 @@ loop(State) ->
             io:format("proposing ~p~n", [Command]),
             loop(NewState);
         {decision, Slot, Command} ->
-            handle_decision(Slot, Command, State),
-            loop(NewStateB);
+            NewState = handle_decision(Slot, Command, State),
+            loop(NewState);
         {'EXIT', _FromPid, _Reason} ->
             'a proposal crashed or exited',
             loop(State)
@@ -91,7 +91,7 @@ consume_decisions(State) ->
         false ->
             State;
         {Slot, DecidedCommand} ->
-            StateAfterProposalGC = gc_proposals(Slot, DecidedCommand, State)
+            StateAfterProposalGC = gc_proposals(Slot, DecidedCommand, State),
             StateAfterPerform = perform(DecidedCommand, StateAfterProposalGC),
             consume_decisions(StateAfterPerform)
     end.
@@ -107,7 +107,7 @@ gc_proposals(Slot, DecidedCommand, State) ->
             % leave 
             State;
         {Slot, ConflictingCommand} ->
-            CleanedState = remove_proposal_from_state(Slot, State)
+            CleanedState = remove_proposal_from_state(Slot, State),
             propose(ConflictingCommand, CleanedState)
     end.
 
