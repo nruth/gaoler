@@ -1,6 +1,6 @@
 -module(replica).
 -export([request/2]).
--export([loop/1, start/1]).
+-export([loop/1, start/1, stop/0]).
 
 -record(replica, {slot_num = 1,
                   proposals = [],
@@ -29,6 +29,9 @@ start(LockApplication) ->
     ReplicaState = #replica{application=LockApplication},
     register(replica, spawn_link(fun() -> loop(ReplicaState) end)).    
 
+stop() ->
+    ?SERVER ! stop.
+
 loop(State) ->
     receive
         {request, Command} ->
@@ -40,7 +43,9 @@ loop(State) ->
             loop(NewState);
         {'EXIT', _FromPid, _Reason} ->
             'a proposal crashed or exited',
-            loop(State)
+            loop(State);
+        stop ->
+            ok
     end.
 
 %%% Internals
