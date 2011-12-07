@@ -62,5 +62,5 @@ clean_up_logdirectory() ->
 %%%%%%%%%%%%%%%%
    
 single_request_test(_Config) ->
-    {ok, {acquire, _}} = replica:request(acquire).
+    {ok, {{acquire, _}, _}} = replica:request(acquire, self()).
     

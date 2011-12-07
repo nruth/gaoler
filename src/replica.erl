@@ -12,8 +12,9 @@
 
 %%% Client API
 request(Operation, Client) ->
+    ClientProxy = self(),
     UniqueRef = make_ref(),
-    [{?SERVER, Node} ! {request, {Client, UniqueRef, Operation}} ||
+    [{?SERVER, Node} ! {request, {ClientProxy, UniqueRef, {Operation, Client}}} ||
         Node <- [node()|nodes()]],
     receive
         {response, UniqueRef, Result} ->
@@ -94,7 +95,7 @@ handle_proposal_preemption(State) ->
             propose(ConflictingCommand, State)
     end.
     
-perform({Client, UniqueRef, Operation}, State) ->
+perform({ClientProxy, UniqueRef, {Operation, Client}}, State) ->
     FunFilter = fun({S, _Operation}) -> S < State#replica.slot_num end,
     case lists:any(FunFilter, State#replica.decisions) of
         true ->
@@ -102,7 +103,7 @@ perform({Client, UniqueRef, Operation}, State) ->
         false ->
             ResultFromFunction = (catch (State#replica.application):Operation(Client)),
             NewState = tick_slot_number(State),
-            Client ! {response, UniqueRef, {Operation, ResultFromFunction}},
+            ClientProxy ! {response, UniqueRef, {Operation, ResultFromFunction}},
             NewState
     end.
 
