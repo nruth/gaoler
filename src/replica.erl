@@ -116,19 +116,27 @@ gc_proposals(Slot, DecidedCommand, State) ->
             propose(ConflictingCommand, CleanedState)
     end.
 
-perform({ClientProxy, UniqueRef, {Operation, Client}}, State) ->
-    FunFilter = fun({S, _Operation}) -> S < State#replica.slot_num end,
-    case lists:any(FunFilter, State#replica.decisions) of
-        true ->
-            tick_slot_number(State);
-        false ->
+%% carries out Command, unless it's already been performed by a previous decision
+perform({ClientProxy, UniqueRef, {Operation, Client}}=Command, State) ->
+    case has_command_already_been_performed(Command, State) of
+        true -> % don't apply repeat messages
+            inc_slot_number(State);
+        false -> % command not seen before, apply
             ResultFromFunction = (catch (State#replica.application):Operation(Client)),
-            NewState = tick_slot_number(State),
+            NewState = inc_slot_number(State),
             ClientProxy ! {response, UniqueRef, {Operation, ResultFromFunction}},
             NewState
     end.
 
-tick_slot_number(State) ->
+%% predicate: if exists an S : S < slot_num and {slot, command} in decisions
+has_command_already_been_performed(Command, State) ->
+    PastCmdMatcher = fun(
+        {S, P}) -> 
+            (P == Command) and (S < State#replica.slot_num)
+    end,
+    lists:any(PastCmdMatcher, State#replica.decisions).
+
+inc_slot_number(State) ->
     State#replica{slot_num=State#replica.slot_num + 1}.
 
 add_decision_to_state(SlotCommand, State) ->
@@ -142,4 +150,3 @@ remove_proposal_from_state(SlotNumber, State) ->
 
 send_to_leaders(Proposal, _State) ->
     proposer:propose(Proposal).
-    
