@@ -127,7 +127,7 @@ perform({ClientProxy, UniqueRef, {Operation, Client}}=Command, State) ->
 has_command_already_been_performed(Command, State) ->
     PastCmdMatcher = fun(
         {S, P}) -> 
-            P == Command and S < State#replica.slot_num 
+            (P == Command) and (S < State#replica.slot_num)
     end,
     lists:any(PastCmdMatcher, State#replica.decisions).
 
