@@ -1,5 +1,5 @@
 -module(replica).
--export([request/1]).
+-export([request/2]).
 -export([loop/1, start/1]).
 
 -record(replica, {slot_num = 1,
@@ -11,8 +11,7 @@
 -define (SERVER, ?MODULE).
 
 %%% Client API
-request(Operation) ->
-    Client = self(),
+request(Operation, Client) ->
     UniqueRef = make_ref(),
     [{?SERVER, Node} ! {request, {Client, UniqueRef, Operation}} ||
         Node <- [node()|nodes()]],
