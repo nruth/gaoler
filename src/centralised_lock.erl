@@ -31,18 +31,18 @@ stop() ->
 init([]) -> {ok, #state{queue = ?QUEUE_LIB:new()}}.
 
 handle_call({acquire, Client}, _From, State) ->
-    {reply, ok, acquire(Client, State)};
+    {reply, ok, handle_acquire_req(Client, State)};
 handle_call(get_queue, _From, State) ->
     {reply, State#state.queue, State};
 handle_call({release, Client}, _From, State) -> 
-    {reply, ok, release(Client, State)}.
+    {reply, ok, handle_release_req(Client, State)}.
 
 handle_cast(stop, State) -> 
     {stop, normal, State}.
 
 %% add the client to the lock queue, and
 %% give them the lock if nobody else was waiting
-acquire(Client, State) ->
+handle_acquire_req(Client, State) ->
     Queue = State#state.queue,
     case ?QUEUE_LIB:is_empty(Queue) of
         true -> send_lock(Client);
@@ -53,7 +53,7 @@ acquire(Client, State) ->
 
 %% give the current lock holder from the queue
 %%  and give the lock to the next in queue (if any)
-release(_Client, State) ->
+handle_release_req(_Client, State) ->
     case ?QUEUE_LIB:out(State#state.queue) of
         {{value, _Releasing}, NewQueue} ->
             %remove lock, send new if any
