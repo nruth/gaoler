@@ -28,30 +28,6 @@ start(LockApplication) ->
     ReplicaState = #replica{application=LockApplication},
     register(replica, spawn_link(fun() -> loop(ReplicaState) end)).    
 
-slot_for_next_proposal(#replica{proposals=Proposals, decisions=Decisions}) ->
-    MaxSlotFn = fun({Slot, _Command}, Highest) -> max(Slot, Highest) end,
-    MaxPropSlot = lists:foldl(MaxSlotFn, 0, Proposals),
-    HighSlot = lists:foldl(MaxSlotFn, MaxPropSlot, Decisions),
-    1 + HighSlot.
-
-propose(Command, State) ->
-    case is_command_already_decided(Command, State) of 
-        false ->
-            Proposal = {slot_for_next_proposal(State), Command},
-            send_to_leaders(Proposal, State),
-            add_proposal_to_state(Proposal, State);
-        true ->
-            State
-    end.
-
-is_command_already_decided(Command, State) ->
-    lists:any(
-        fun({_S, DecidedCommand}) -> 
-            Command == DecidedCommand 
-        end, 
-        State#replica.decisions
-    ).
-
 loop(State) ->
     receive
         {request, Command} ->
@@ -66,6 +42,38 @@ loop(State) ->
             'a proposal crashed or exited',
             loop(State)
     end.
+
+%%% Internals
+
+%% Push the command into the replica command queue
+%% Should check that it hasn't already been delivered (duplicate msg)
+%% Side-effects: sends messages to total ordering layer
+%% Returns: updated state, with the command added to proposals
+propose(Command, State) ->
+    case is_command_already_decided(Command, State) of 
+        false ->
+            Proposal = {slot_for_next_proposal(State), Command},
+            send_to_leaders(Proposal, State),
+            add_proposal_to_state(Proposal, State);
+        true ->
+            State
+    end.
+
+%% returns the next available slot, using the local replica's state
+slot_for_next_proposal(#replica{proposals=Proposals, decisions=Decisions}) ->
+    MaxSlotFn = fun({Slot, _Command}, Highest) -> max(Slot, Highest) end,
+    MaxPropSlot = lists:foldl(MaxSlotFn, 0, Proposals),
+    HighSlot = lists:foldl(MaxSlotFn, MaxPropSlot, Decisions),
+    1 + HighSlot.
+
+
+is_command_already_decided(Command, State) ->
+    lists:any(
+        fun({_S, DecidedCommand}) -> 
+            Command == DecidedCommand 
+        end, 
+        State#replica.decisions
+    ).
 
 consume_decisions(State) ->
     case lists:keyfind(State#replica.slot_num, 1, State#replica.decisions) of
