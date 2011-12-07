@@ -36,7 +36,6 @@ loop(State) ->
     receive
         {request, Command} ->
             NewState = propose(Command, State),
-            io:format("proposing ~p~n", [Command]),
             loop(NewState);
         {decision, Slot, Command} ->
             NewState = handle_decision(Slot, Command, State),
