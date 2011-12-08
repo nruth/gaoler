@@ -89,7 +89,15 @@ wait_atomic_operations([Pid|Tail]) ->
             [ok|wait_atomic_operations(Tail)]
     end;
 wait_atomic_operations([]) ->
-    [].
+    case queue:is_empty(centralised_lock:get_queue()) of 
+        true ->
+            [];
+        false ->
+            timer:sleep(1000),
+            % this will cause test to hang indefinitely if 
+            % an inconsistency in the replica occurs. 
+            wait_atomic_operations([])            
+    end.
 
 perform_atomic_operation(Parent) ->
     Client = self(),
