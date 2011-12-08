@@ -12,20 +12,20 @@
 
 %%% Client API
 request(Operation, Client) ->
+    spawn(fun() -> client_proxy(Operation, Client) end),
+    ok.
+
+client_proxy(Operation, Client) ->
     ClientProxy = self(),
     UniqueRef = make_ref(),
-    [{?SERVER, Node} ! {request, {ClientProxy, UniqueRef, {Operation, Client}}} ||
-        Node <- [node()|nodes()]],
+    [{?SERVER, Node} ! {request, {ClientProxy, UniqueRef, {Operation, Client}}} || Node <- [node()|nodes()]],
     receive
-        {response, UniqueRef, Result} ->
+        {response, UniqueRef, {_, Result}} ->
             {ok, Result}
-    after 1000 ->
-            timeout
     end.
     
 %%% Replica 
 start(LockApplication) ->
-    process_flag(trap_exit, true),
     ReplicaState = #replica{application=LockApplication},
     register(replica, spawn_link(fun() -> loop(ReplicaState) end)).    
 
@@ -39,10 +39,7 @@ loop(State) ->
             loop(NewState);
         {decision, Slot, Command} ->
             NewState = handle_decision(Slot, Command, State),
-            loop(NewState);
-        {'EXIT', _FromPid, _Reason} ->
-            'a proposal crashed or exited',
-            loop(State);
+            loop(NewState);        
         stop ->
             ok
     end.

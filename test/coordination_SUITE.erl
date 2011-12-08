@@ -13,7 +13,8 @@
 
 % Specify a list of all unit test functions
 all() -> [
-          single_request_test
+          single_request_test,
+          accumulated_consistency_test
          ].
 
 init_per_suite(Config) ->
@@ -62,5 +63,51 @@ clean_up_logdirectory() ->
 %%%%%%%%%%%%%%%%
    
 single_request_test(_Config) ->
-    {ok, {{acquire, _}, _}} = replica:request(acquire, self()).
+    ok = replica:request(acquire, self()).
     
+accumulated_consistency_test(_Config) ->
+    datastore:start(),
+    {ok, 0} = datastore:read(),
+    TimesToIncrement = 5000,
+    Self = self(),
+
+    % spawn processes on local node to perform operation
+    Pids = [spawn_link(fun() -> perform_atomic_operation(Self) end) 
+            || _X <- lists:seq(1,TimesToIncrement)],
+
+    % all processes have to complete before we can check return value
+    wait_atomic_operations(Pids),
+
+    % check if all processes has incremented the value
+    {ok, TimesToIncrement} = datastore:read(),
+    
+    datastore:stop().
+
+wait_atomic_operations([Pid|Tail]) ->
+    receive 
+        {Pid, done} ->
+            [ok|wait_atomic_operations(Tail)]
+    end;
+wait_atomic_operations([]) ->
+    [].
+
+perform_atomic_operation(Parent) ->
+    Client = self(),
+    ok = replica:request(acquire, Client),
+    wait_for_lock(),
+    read_and_increment_value(),
+    ok = replica:request(release, Client),
+    Parent ! {self(), done}.
+
+wait_for_lock() ->
+    receive 
+        lock ->
+            ok
+    end.
+
+read_and_increment_value() ->
+    {ok, Value} = datastore:read(),
+    NewValue = Value + 1,
+    ok = datastore:write(NewValue).
+  
+
