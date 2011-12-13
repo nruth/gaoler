@@ -67,7 +67,7 @@ awaiting_promises({promised, PromisedRound, _}, State)
     when PromisedRound > State#state.round -> % restart with Round+1 
     NextRound = PromisedRound + 1, 
     NewState = State#state{round = NextRound, promises = 0},
-    % TODO: add exponential backoff
+    timer:sleep(NextRound*10), % lazy version of exponential backoff
     acceptors:send_promise_requests(self(), {NewState#state.election,
                                              NextRound}),
     {next_state, awaiting_promises, NewState};
