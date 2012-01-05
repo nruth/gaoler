@@ -3,18 +3,28 @@
 -include_lib("acceptor_state.hrl").
 
 -define(NO_ELECTIONS, #state{}).
--define(ONE_ELECTION(E), #state{elections=[{1,E}]}).
+-define(ONE_ELECTION(E), #state{elections = statestore:add(E)}).
 -define(NO_PROMISES, #election{}).
--define(PROMISED(N), #election{promised=N}).
--define(PROMISED_AND_ACCEPTED(N, A), #election{promised=N, accepted=A}).
+-define(PROMISED(N), #election{id=1, promised=N}).
+-define(PROMISED_AND_ACCEPTED(N, A), #election{id=1, promised=N, accepted=A}).
 
 %%%=
+setup() ->
+    statestore:create().
+
+teardown(Name) ->
+    ets:delete(Name).
+    
 promise_requests_test_() -> 
-    [
-     fun should_send_promise_when_no_higher_promises_made/0,
-     fun should_send_highest_promise_when_lower_prepare_received/0,
-     fun should_not_change_state_when_receiving_lower_prepare_request/0
-    ].
+    {foreach, 
+     fun setup/0,
+     fun teardown/1,     
+     [
+      fun should_send_promise_when_no_higher_promises_made/0,
+      fun should_send_highest_promise_when_lower_prepare_received/0,
+      fun should_not_change_state_when_receiving_lower_prepare_request/0
+     ]
+    }.
 
 should_send_promise_when_no_higher_promises_made() ->
     Sender = nil,
@@ -39,33 +49,39 @@ should_not_change_state_when_receiving_lower_prepare_request() ->
 
 
 accept_request_state_changes_test_() -> 
-    [
-     fun should_update_accepted_when_higher_round_accept_requested/0,
-     fun should_not_change_accepted_when_lower_round_accept_requested/0
-    ].
+    {foreach,
+     fun setup/0,
+     fun teardown/1,
+     [
+      fun should_update_accepted_when_higher_round_accept_requested/0,
+      fun should_not_change_accepted_when_lower_round_accept_requested/0
+     ]
+    }.
 
 should_update_accepted_when_higher_round_accept_requested() ->
     Sender = nil, 
     InitialState = ?ONE_ELECTION(?PROMISED_AND_ACCEPTED(4, prev)),
     Proposal = {accept, {1,5}, v},
-    Result = acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({_, _, ?ONE_ELECTION(#election{accepted = {5,v}})}, Result).
+    acceptor:handle_call(Proposal, Sender, InitialState),
+    ?assertMatch({1, #election{accepted = {5, v}}}, statestore:find(1)).
 
 should_not_change_accepted_when_lower_round_accept_requested() ->
     Sender = nil, 
     InitialState = ?ONE_ELECTION(?PROMISED_AND_ACCEPTED(6, prev)),
     Proposal = {accept, {1,5}, v},
-    Result = acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({_, _, ?ONE_ELECTION(#election{accepted = prev})}, Result).
-
-
+    acceptor:handle_call(Proposal, Sender, InitialState),
+    ?assertMatch({1, #election{accepted = prev}}, statestore:find(1)).
 
 accept_request_replies_test_() -> 
-    [
-     fun should_reply_accept_for_promised_round/0,
-     fun should_reply_accept_for_round_higher_than_promise/0,
-     fun should_reply_reject_to_lower_round_than_promised/0
-    ].
+    {foreach,
+     fun setup/0,
+     fun teardown/1,
+     [
+      fun should_reply_accept_for_promised_round/0,
+      fun should_reply_accept_for_round_higher_than_promise/0,
+      fun should_reply_reject_to_lower_round_than_promised/0
+     ]
+    }.
 
 should_reply_accept_for_promised_round() ->
     Sender = nil,

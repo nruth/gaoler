@@ -4,6 +4,7 @@
 }).
 
 -record(election, {
+    id = undefined,
     promised = 0,
     accepted = no_value
 }).
