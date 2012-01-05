@@ -29,8 +29,8 @@ promise_requests_test_() ->
 should_send_promise_when_no_higher_promises_made() ->
     Sender = nil,
     InitialState = ?NO_ELECTIONS,
-    Result = acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
-    ?assertMatch({reply, {promised, 5, no_value}, _}, Result).
+    {reply, Reply, _} = acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
+    ?assertEqual({promised, 5, no_value}, Reply).
 
 should_send_highest_promise_when_lower_prepare_received() ->
         % since the proposer should know someone else has already prevented 
@@ -38,14 +38,15 @@ should_send_highest_promise_when_lower_prepare_received() ->
         % allows simpler acceptor
     Sender = nil,
     InitialState = ?ONE_ELECTION(?PROMISED(6)),
-    Result = acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
-    ?assertMatch({reply, {promised, 6, no_value}, _}, Result).
+    {reply, Reply, _} = acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
+    ?assertEqual({promised, 6, no_value}, Reply).
 
 should_not_change_state_when_receiving_lower_prepare_request() ->
     Sender = nil,
     InitialState = ?ONE_ELECTION(?PROMISED(6)),
-    {_,_,State} = acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
-    ?assertEqual(InitialState, State).
+    acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
+    {1, CurrentElection} = statestore:find(1),
+    ?assertMatch(#election{promised=6}, CurrentElection).
 
 
 accept_request_state_changes_test_() -> 
@@ -87,25 +88,28 @@ should_reply_accept_for_promised_round() ->
     Sender = nil,
     InitialState = ?ONE_ELECTION(?PROMISED(5)),
     Proposal = {accept, {1,5}, v},
-    Result = acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({reply, {accepted, 5, v}, _}, Result).
+    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, InitialState),
+    ?assertEqual({accepted, 5, v}, Reply).
 
 should_reply_accept_for_round_higher_than_promise() ->
     Sender = nil,
     InitialState = ?ONE_ELECTION(?PROMISED(3)),
     Proposal = {accept, {1,5}, v},
-    Result = acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({reply, {accepted, 5, v}, _}, Result).
+    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, InitialState),
+    ?assertEqual({accepted, 5, v}, Reply).
 
 should_reply_reject_to_lower_round_than_promised() ->
     Sender = nil,
     InitialState = ?ONE_ELECTION(?PROMISED(6)),
     Proposal = {accept, {1,5}, v},
-    Result = acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({reply, {reject, 5}, _}, Result).
+    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, InitialState),
+    ?assertEqual({reject, 5}, Reply).
 
 
 % see van Renesse's "Paxos Made Moderately Complex" sec 4.2
+%%
+%% -- TODO: Needs updating to use statestore instead of lists
+%%
 acceptor_garbage_collection_test_() ->
     [
         fun should_record_last_gc_performed/0,
