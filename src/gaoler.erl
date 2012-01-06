@@ -7,6 +7,7 @@
 -export([
 	 start_link/0, 
 	 get_acceptors/0,
+         majority/0,
          acquire/1,
 	 join/0,
 	 stop/0
@@ -51,6 +52,9 @@ handle_operation(Operation) ->
             Error
     end.
 
+majority() ->
+    gen_server:call(?SERVER, majority).
+
 join() ->
     gen_server:abcast(?SERVER, {join, node()}). 
 
@@ -67,12 +71,18 @@ stop() ->
 
 init([]) ->
     process_flag(trap_exit, true),
-    {ok, Nodes} = application:get_env(gaoler, nodes),
+
+    % read config
+    {ok, Configuration} = file:consult("gaoler.config"),
+    InitialState = #state{configuration = Configuration},
+
     % ping nodes from configuration
+    Nodes = proplists:get_value(nodes, InitialState#state.configuration, []),
     [spawn(fun() -> net_adm:ping(Node) end) || Node <- Nodes],
-    {ok, #state{}}.
+    {ok, InitialState}.
 
-
+handle_call(majority, _From, State) ->
+    {reply, proplists:get_value(majority, State#state.configuration), State};
 handle_call(get_acceptors, _From, State) ->
     Reply = [{acceptor, Node} || Node <- [node()|nodes()]],
     {reply, Reply, State}.
