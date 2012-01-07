@@ -65,12 +65,17 @@ should_restart_prepare_with_higher_round_when_higher_round_promise_seen() ->
 %%% ====================================================
 %%% counting promises and tracking which proposal to use
 %%% ====================================================
-awaiting_promises_count_promise_and_check_proposal_vs_past_accepts_test_() -> [
-    fun should_count_promises_for_same_round/0,
-    fun should_not_count_promise_for_lower_round/0,
-    fun should_ignore_proposal_value_sent_with_promise_when_round_lower/0,
-    fun should_adopt_proposal_value_sent_with_promise_when_round_higher/0
-].
+awaiting_promises_count_promise_and_check_proposal_vs_past_accepts_test_() -> 
+    {foreach,
+     fun setup/0,
+     fun teardown/1,
+     [
+      fun should_count_promises_for_same_round/0,
+      fun should_not_count_promise_for_lower_round/0,
+      fun should_ignore_proposal_value_sent_with_promise_when_round_lower/0,
+      fun should_adopt_proposal_value_sent_with_promise_when_round_higher/0
+     ]
+    }.
 
 should_count_promises_for_same_round() -> 
     InitialState = #state{round = 10, promises = 1},
@@ -249,6 +254,7 @@ setup() ->
     Mods = [acceptors, gaoler, learners],
     meck:new(Mods),
     meck:expect(gaoler, deliver, 1, ok),
+    meck:expect(gaoler, majority, 0, 3),
     meck:expect(acceptors, send_accept_requests, 3, ok),
     meck:expect(acceptors, send_promise_requests, 2, ok),
     meck:expect(learners, broadcast_result, 1, ok),    
