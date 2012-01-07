@@ -28,25 +28,3 @@ out([]) ->
     {empty, []};
 out([Head|QueueTail]) ->
     {{value, Head}, QueueTail}.
-
-
-% queue implementation
-% %% returns true or false 
-% is_empty(Queue) ->
-%     queue:is_empty(Queue).
-% 
-% %% obeys queue:peek api
-% %% returns {value, QueueHead} or empty
-% current_lock_holder(Queue) ->
-%     queue:peek(Queue).
-% 
-% new_queue() ->
-%     queue:new().
-% 
-% append(Elem, Queue) ->
-%     queue:in(Elem, Queue).
-% 
-% %% mimics queue:out api
-% %% returns {empty, EmptyQueue} or {{value, Head}, QueueTail}
-% pop_head(Queue) ->
-%     queue:out(Queue).
