@@ -8,7 +8,6 @@
 	 start_link/0, 
 	 get_acceptors/0,
          majority/0,
-         acquire/1,
 	 join/0,
 	 stop/0
 	]).
@@ -20,12 +19,10 @@
 	 handle_cast/2, 
 	 handle_info/2,
 	 terminate/2, 
-	 code_change/3,
-         handle_operation/1
+	 code_change/3
 	]).
 
 -define(SERVER, ?MODULE). 
--define(REQUIRED_MAJORITY, 3).
 -define(DEFAULT_MAJORITY, 3).
 
 %%%===================================================================
@@ -34,24 +31,6 @@
 
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-
-acquire(Client) ->
-    spawn_link(fun() -> ?MODULE:handle_operation({acquire, Client}) end),
-    ok.
-
-handle_operation(Operation) ->            
-    {ok, Ticket} = ticket_machine:next(),
-    case coordinator:put(Ticket, Operation, 1000) of 
-        {ok, Operation} ->
-            % deliver lock to all replicas
-            % should use the replicated_lock:deliver/1 function
-            gen_server:abcast(replicated_lock, {deliver, {Ticket, Operation}});
-        {taken, _OperationInSlot} ->
-             % someone else got the lock, try again with a higher number
-            handle_operation(Operation);
-        {error, _}=Error ->
-            Error
-    end.
 
 majority() ->
     gen_server:call(?SERVER, majority).
@@ -104,7 +83,7 @@ handle_cast(_Msg, State) ->
 
 handle_info({nodedown, Node}, State) ->
     io:format("Lost node: ~p~n", [Node]),
-    case length(gaoler:get_acceptors()) < ?REQUIRED_MAJORITY of 
+    case length(gaoler:get_acceptors()) < gaoler:majority() of 
 	true ->
 	    io:format("FATAL: Insufficient majority.~n", []);
 	false ->
