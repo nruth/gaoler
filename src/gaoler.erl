@@ -73,7 +73,7 @@ init([]) ->
     process_flag(trap_exit, true),
     
     % read config
-    {ok, Configuration} = file:consult("/home/archie/repos/gaoler/ebin/gaoler.config"),
+    {ok, Configuration} = file:consult("gaoler.config"),
     InitialState = #state{configuration = Configuration},
 
     % ping nodes from configuration
