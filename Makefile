@@ -8,8 +8,11 @@ all: deps
 test: deps
 	$(REBAR) compile eunit
 
+ct: deps
+	$(REBAR) compile ct
+
 deps: 
-	mkdir .eunit
+	mkdir -p .eunit
 	cp src/gaoler.config.src .eunit/gaoler.config
 	cp src/gaoler.config.src ebin/gaoler.config
 

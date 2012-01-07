@@ -26,6 +26,7 @@
 
 -define(SERVER, ?MODULE). 
 -define(REQUIRED_MAJORITY, 3).
+-define(DEFAULT_MAJORITY, 3).
 
 %%%===================================================================
 %%% API
@@ -73,7 +74,13 @@ init([]) ->
     process_flag(trap_exit, true),
     
     % read config
-    {ok, Configuration} = file:consult("gaoler.config"),
+    Configuration = 
+        case file:consult("gaoler.config") of
+            {ok, ReadConfig} ->
+                ReadConfig;
+            {error, _} ->
+                [{majority, ?DEFAULT_MAJORITY}, {nodes, []}]
+        end,
     InitialState = #state{configuration = Configuration},
 
     % ping nodes from configuration
