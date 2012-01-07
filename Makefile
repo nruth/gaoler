@@ -1,12 +1,17 @@
 REBAR=rebar
 
-.PHONY: all test docs
+.PHONY: all test docs deps
 
-all: 
+all: deps
 	$(REBAR) compile
 
-test:
+test: deps
 	$(REBAR) compile eunit
+
+deps: 
+	mkdir .eunit
+	cp src/gaoler.config.src .eunit/gaoler.config
+	cp src/gaoler.config.src ebin/gaoler.config
 
 clean:
 	$(REBAR) clean
