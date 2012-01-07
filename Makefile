@@ -19,6 +19,8 @@ deps:
 clean:
 	$(REBAR) clean
 	rm test/*.beam
+	rm ebin/gaoler.config
+	rm .eunit/gaoler.config
 
 docs: 
 	@echo "Not yet..."
