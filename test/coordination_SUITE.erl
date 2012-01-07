@@ -69,7 +69,7 @@ single_request_test(_Config) ->
 centralised_lock_without_consensus_test(_Config) ->
     datastore:start(),
     {ok, 0} = datastore:read(),
-    TimesToIncrement = 25000,
+    TimesToIncrement = 50,
     Self = self(),
     Pids = [spawn_link(fun() -> perform_atomic_operation(Self,noconsensus) end)
             || _X <- lists:seq(1,TimesToIncrement)],
@@ -80,7 +80,7 @@ centralised_lock_without_consensus_test(_Config) ->
 accumulated_consistency_test(_Config) ->
     datastore:start(),
     {ok, 0} = datastore:read(),
-    TimesToIncrement = 5000,
+    TimesToIncrement = 50,
     Self = self(),
 
     % spawn processes on local node to perform operation
