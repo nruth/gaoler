@@ -1,4 +1,5 @@
 -record(state, 
 	{
-	  subscribers = []
+	  subscribers = [],
+          configuration = []
 	}).

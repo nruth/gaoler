@@ -67,7 +67,7 @@ awaiting_promises({promised, PromisedRound, _}, State)
     when PromisedRound > State#state.round -> % restart with Round+1 
     NextRound = PromisedRound + 1, 
     NewState = State#state{round = NextRound, promises = 0},
-    % TODO: add exponential backoff
+    timer:sleep(NextRound*10), % lazy version of exponential backoff
     acceptors:send_promise_requests(self(), {NewState#state.election,
                                              NextRound}),
     {next_state, awaiting_promises, NewState};
@@ -92,16 +92,18 @@ awaiting_promises( {promised, PromisedRound, {AcceptedRound, AcceptedValue}},
 awaiting_promises(_, State) ->
     {next_state, awaiting_promises, State}.
 
-% majority reached
-loop_until_promise_quorum(#state{promises = ?MAJORITY}=State) ->
-    Proposal = State#state.value#proposal.value,
-    acceptors:send_accept_requests(self(), 
-                                   {State#state.election, State#state.round}, 
-                                   Proposal),
-    {next_state, awaiting_accepts, State};
-
-loop_until_promise_quorum(State) -> % keep waiting
-    {next_state, awaiting_promises, State}.
+loop_until_promise_quorum(State) ->
+    case State#state.promises >= gaoler:majority() of
+        true -> % majority reached
+            Proposal = State#state.value#proposal.value,
+            acceptors:send_accept_requests(self(), 
+                                           {State#state.election, 
+                                            State#state.round}, 
+                                           Proposal),
+            {next_state, awaiting_accepts, State};
+        false ->  % keep waiting
+            {next_state, awaiting_promises, State}
+    end.
 
 
 
@@ -115,15 +117,14 @@ awaiting_accepts({rejected, Round}, #state{round=Round}=State) ->
 
 awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
     NewState = State#state{accepts = State#state.accepts + 1},
-    case NewState#state.accepts >= ?MAJORITY of
-    false ->
-        {next_state, awaiting_accepts, NewState};
-    true ->
-        % deliver result to coordinator
-        NewState#state.reply_to ! {decision, 
-                                    State#state.election, 
-                                    State#state.value#proposal.value},
-        {stop, normal, NewState}
+    case NewState#state.accepts >= gaoler:majority() of
+        false ->
+            {next_state, awaiting_accepts, NewState};
+        true -> % deliver result to coordinator
+            NewState#state.reply_to ! {decision, 
+                                       State#state.election, 
+                                       State#state.value#proposal.value},
+            {stop, normal, NewState}
     end;
 
 awaiting_accepts(_, State) ->

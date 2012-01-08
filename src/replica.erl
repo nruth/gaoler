@@ -18,7 +18,8 @@ request(Operation, Client) ->
 client_proxy(Operation, Client) ->
     ClientProxy = self(),
     UniqueRef = make_ref(),
-    [{?SERVER, Node} ! {request, {ClientProxy, UniqueRef, {Operation, Client}}} || Node <- [node()|nodes()]],
+%    [{?SERVER, Node} ! {request, {ClientProxy, UniqueRef, {Operation, Client}}} || Node <- [node()|nodes()]],
+    ?SERVER ! {request, {ClientProxy, UniqueRef, {Operation, Client}}},
     receive
         {response, UniqueRef, {_, Result}} ->
             {ok, Result}

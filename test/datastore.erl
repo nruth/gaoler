@@ -30,7 +30,7 @@ loop(Value) ->
 wait_result() ->
     receive 
         {reply, Reply} -> 
-            Reply; 
-        _ ->
-            wait_result()
+            Reply%; 
+        %_ ->
+        %    wait_result()
     end.

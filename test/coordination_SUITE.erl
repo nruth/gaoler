@@ -14,6 +14,7 @@
 % Specify a list of all unit test functions
 all() -> [
           single_request_test,
+          centralised_lock_without_consensus_test,
           accumulated_consistency_test
          ].
 
@@ -65,14 +66,25 @@ clean_up_logdirectory() ->
 single_request_test(_Config) ->
     ok = replica:request(acquire, self()).
     
+centralised_lock_without_consensus_test(_Config) ->
+    datastore:start(),
+    {ok, 0} = datastore:read(),
+    TimesToIncrement = 50,
+    Self = self(),
+    Pids = [spawn_link(fun() -> perform_atomic_operation(Self,noconsensus) end)
+            || _X <- lists:seq(1,TimesToIncrement)],
+    wait_atomic_operations(Pids),
+    {ok, TimesToIncrement} = datastore:read(),
+    datastore:stop().
+
 accumulated_consistency_test(_Config) ->
     datastore:start(),
     {ok, 0} = datastore:read(),
-    TimesToIncrement = 5000,
+    TimesToIncrement = 50,
     Self = self(),
 
     % spawn processes on local node to perform operation
-    Pids = [spawn_link(fun() -> perform_atomic_operation(Self) end) 
+    Pids = [spawn_link(fun() -> perform_atomic_operation(Self,consensus) end) 
             || _X <- lists:seq(1,TimesToIncrement)],
 
     % all processes have to complete before we can check return value
@@ -89,9 +101,24 @@ wait_atomic_operations([Pid|Tail]) ->
             [ok|wait_atomic_operations(Tail)]
     end;
 wait_atomic_operations([]) ->
-    [].
+    case queue:is_empty(centralised_lock:get_queue()) of 
+        true ->
+            [];
+        false ->
+            timer:sleep(1000),
+            % this will cause test to hang indefinitely if 
+            % an inconsistency in the replica occurs. 
+            wait_atomic_operations([])            
+    end.
 
-perform_atomic_operation(Parent) ->
+perform_atomic_operation(Parent, noconsensus) ->
+    Client = self(),
+    centralised_lock:acquire(Client),
+    wait_for_lock(),
+    read_and_increment_value(),
+    centralised_lock:release(Client),
+    Parent ! {self(), done};
+perform_atomic_operation(Parent, consensus) ->
     Client = self(),
     ok = replica:request(acquire, Client),
     wait_for_lock(),
