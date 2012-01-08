@@ -1,7 +1,6 @@
 -module(lock_test).
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("lock_state.hrl").
--include_lib("queue_lib.hrl").
 
 %%% =============================
 %%% Test Helpers
@@ -21,7 +20,7 @@ teardown(Mods) ->
     meck:unload(Mods).
 
 add_dummy_client_to_queue(State) ->
-    State#state{queue = ?QUEUE_LIB:in(dummy_client, State#state.queue)}.
+    State#state{queue = queue:in(dummy_client, State#state.queue)}.
 
 
 %%% =============================
@@ -29,7 +28,7 @@ add_dummy_client_to_queue(State) ->
 %%% =============================
 new_lock_has_no_client_queue_test() ->
     {ok, State} = lock:init([mock_lock_persistence, mock_comms]),
-    ?assert(?QUEUE_LIB:is_empty(State#state.queue)).
+    ?assert(queue:is_empty(State#state.queue)).
 
 new_lock_stores_persistence_callback_module_test() ->
     {ok, State} = lock:init([mock_lock_persistence, mock_comms]),
@@ -66,13 +65,13 @@ with_queued_clients_dont_send_lock_to_requester() ->
 with_empty_lock_queue_add_client_to_queue() ->
     {ok, InitState} = lock:init([mock_lock_persistence, mock_comms]),
     {reply, ok, State} = lock:handle_call({acquire, someclient}, sender, InitState),
-    ?assertEqual(someclient, ?QUEUE_LIB:last(State#state.queue)).
+    ?assertEqual(someclient, queue:last(State#state.queue)).
 
 with_queued_clients_add_client_to_queue() ->
     {ok, InitState} = lock:init([mock_lock_persistence, mock_comms]),
     ClientsQueuedState = add_dummy_client_to_queue(InitState),
     {reply, ok, State} = lock:handle_call({acquire, someclient}, sender, ClientsQueuedState),
-    ?assertEqual(someclient, ?QUEUE_LIB:last(State#state.queue)).
+    ?assertEqual(someclient, queue:last(State#state.queue)).
 
 with_empty_lock_queue_run_persistence_lock_granted_callback() ->
     {ok, InitState} = lock:init([mock_lock_persistence, mock_comms]),

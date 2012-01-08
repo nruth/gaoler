@@ -1,5 +1,4 @@
 -module (replicated_lock).
--include_lib("queue_lib.hrl").
 -include_lib("replicated_lock_state.hrl").
 
 -export ([acquire/1, release/1, get_queue/0, stop/0]).
@@ -40,7 +39,7 @@ stop() ->
 %%% internals
 
 % starts with empty data store
-init([]) -> {ok, #state{queue = ?QUEUE_LIB:new()}}.
+init([]) -> {ok, #state{queue = queue:new()}}.
 
 handle_call(get_queue, _From, State) ->
     {reply, State#state.queue, State};
@@ -86,20 +85,20 @@ handle_cast(stop, State) ->
 %% give them the lock if nobody else was waiting
 acquire(Client, State) ->
     Queue = State#state.queue,
-    case ?QUEUE_LIB:is_empty(Queue) of
+    case queue:is_empty(Queue) of
         true -> send_lock(Client);
         false -> noop
     end,
-    NewQueue = ?QUEUE_LIB:in(Client, Queue),
+    NewQueue = queue:in(Client, Queue),
     State#state{queue=NewQueue}.
 
 %% give the current lock holder from the queue
 %%  and give the lock to the next in queue (if any)
 release(_Client, State) ->
-    case ?QUEUE_LIB:out(State#state.queue) of
+    case queue:out(State#state.queue) of
         {{value, _Releasing}, NewQueue} ->
             %remove lock, send new if any
-            case ?QUEUE_LIB:peek(NewQueue) of
+            case queue:peek(NewQueue) of
                 {value, NextLockHolder} ->
                     send_lock(NextLockHolder);
                 empty -> 

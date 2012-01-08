@@ -3,7 +3,6 @@
 -export ([acquire/1, release/1, get_queue/0, stop/0]).
 -export([start_link/2, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--include_lib("queue_lib.hrl").
 -include_lib("lock_state.hrl").
 -define (SERVER, ?MODULE).
 
@@ -27,7 +26,7 @@ stop() ->
 
 %% starts with empty data store and sets the lock module
 init([PersistenceModule, CommsModule]) -> {ok, #state{
-    queue = ?QUEUE_LIB:new(), 
+    queue = queue:new(), 
     persistence_module = PersistenceModule,
     comms_module = CommsModule    
 }}.
@@ -43,10 +42,10 @@ handle_call({release, Client}, _From, State) ->
 %% add the client to the lock queue, and
 %% give them the lock if nobody else was waiting
 handle_acquire_req(Client, #state{queue=Queue}=State) ->
-    NewQueue = ?QUEUE_LIB:in(Client, Queue),
+    NewQueue = queue:in(Client, Queue),
     NewState = State#state{queue=NewQueue},
     % if the queue is empty we can send out the lock
-    case ?QUEUE_LIB:is_empty(Queue) of
+    case queue:is_empty(Queue) of
         true -> persistence_callback(lock_granted, [NewState], NewState),
                 comms(send_lock, [Client], State);
         false -> noop
@@ -57,11 +56,11 @@ handle_acquire_req(Client, #state{queue=Queue}=State) ->
 %%  and give the lock to the next in queue (if any)
 handle_release_req(_Client, State) ->
     % release the lock, removing the queue head who held it
-    case ?QUEUE_LIB:out(State#state.queue) of
+    case queue:out(State#state.queue) of
         % the lock was held
         {{value, _Releasing}, NewQueue} ->
             % is someone waiting in the queue?
-            case ?QUEUE_LIB:peek(NewQueue) of
+            case queue:peek(NewQueue) of
                 {value, NextLockHolder} -> 
                     % yes: send them the lock
                     persistence_callback(lock_holder_changed, [State], State),
