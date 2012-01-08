@@ -28,9 +28,11 @@ replica_test_() ->
     }.
 
 request_api_acquire() ->
-    ?assertEqual({ok, {acquire, ok}}, replica:request(acquire, self())),
+    ?assertEqual(ok, replica:request(acquire, self())),
+    timer:sleep(10),
     ?assert(meck:called(proposer, propose, '_')).
 
 request_api_release() ->
-    ?assertEqual({ok, {release, ok}}, replica:request(release, self())),
+    ?assertEqual(ok, replica:request(release, self())),
+    timer:sleep(10),
     ?assert(meck:called(proposer, propose, '_')).
