@@ -49,7 +49,9 @@ accept(Acceptor, {Election,Round}, Value) ->
 %%% Implementation
 %%%===================================================================
 init([]) -> 
-    StartState = persister:load_saved_state(),
+%    StartState = persister:load_saved_state(),
+    Store = statestore:create(),
+    StartState = #state{elections = Store},
     {ok, StartState}.
 
 % gen_server callback
@@ -66,33 +68,33 @@ handle_cast(stop, State) -> {stop, normal, State}.
 %%% Prepare requests
 %%%=================================================================== 
 handle_prepare({ElectionId, Round}, State) ->
-    case lists:keyfind(ElectionId, 1, State#state.elections) of
+    case statestore:find(ElectionId) of
         {ElectionId, FoundElection} ->
             handle_prepare_for_existing_election(ElectionId, Round, FoundElection, State);
         false ->
             create_new_election_from_prepare_request(ElectionId, Round, State)
     end.    
 
-handle_prepare_for_existing_election(ElectionId, Round, FoundElection, State) ->
+handle_prepare_for_existing_election(_ElectionId, Round, FoundElection, State) ->
     HighestPromise = max(Round, FoundElection#election.promised),
     NewElection = FoundElection#election{promised = HighestPromise},
-    NewState = update_election(ElectionId, NewElection, State),
+    update_election(NewElection),
     Reply = {promised, HighestPromise, NewElection#election.accepted},
     %persister:remember_promise(ElectionId, NewElection#election.promised),
-    {reply, Reply, NewState}.
+    {reply, Reply, State}.
 
 create_new_election_from_prepare_request(ElectionId, Round, State) ->
-    NewElection = #election{promised = Round},
-    NewState = add_new_election(ElectionId, NewElection, State),
+    NewElection = #election{id = ElectionId, promised = Round},
+    add_new_election(NewElection),
     %persister:remember_promise(ElectionId, Round),
-    {reply, {promised, Round, NewElection#election.accepted}, NewState}.
+    {reply, {promised, Round, NewElection#election.accepted}, State}.
 
 %%%===================================================================
 %%% Accept requests
 %%%=================================================================== 
 handle_accept({ElectionId, Round}, Value, State) ->
     {Reply, NextState} = 
-        case lists:keyfind(ElectionId, 1, State#state.elections) of
+        case statestore:find(ElectionId) of
             {ElectionId, _ElectionRecord}=Election ->
                 handle_accept_for_election(Round, Value, Election, State);
             false ->
@@ -102,35 +104,32 @@ handle_accept({ElectionId, Round}, Value, State) ->
 
 handle_accept_for_election(Round, Value, {ElectionId, Election}, State) 
   when Round >= Election#election.promised ->
-    NewElection = Election#election{promised = Round, 
+    NewElection = Election#election{id = ElectionId, 
+                                    promised = Round, 
                                     accepted = {Round, Value}},
-    NewState = update_election(ElectionId, NewElection, State),
+    update_election(NewElection),
     %persister:remember_vote(ElectionId, Round, Value),
-    {{accepted, Round, Value}, NewState};
+    {{accepted, Round, Value}, State};
 handle_accept_for_election(Round, _Value, _Election, State) ->
     {{reject, Round}, State}.
 
 create_new_election_from_accept_request(ElectionId, Round, Value, State) ->
-    NewElection = #election{promised = Round,
+    NewElection = #election{id = ElectionId, 
+                            promised = Round,
                             accepted = {Round, Value}},
-    NewState = add_new_election(ElectionId, NewElection, State),
+    add_new_election(NewElection),
     %persister:remember_vote(ElectionId, Round, Value),
-    {{accepted, Round, Value}, NewState}.
+    {{accepted, Round, Value}, State}.
 
 
 %%%===================================================================
 %%% Internal functions
 %%%=================================================================== 
-add_new_election(ElectionId, NewElection, State) ->
-    State#state{elections = [{ElectionId, NewElection}|
-                             State#state.elections]}.
+add_new_election(NewElection) ->
+    statestore:add(NewElection).
 
-update_election(ElectionId, NewElection, State) ->
-    UpdatedElections = 
-        lists:keyreplace(ElectionId, 1, 
-                         State#state.elections,
-                         {ElectionId, NewElection}),
-    State#state{elections = UpdatedElections}.
+update_election(NewElection) ->
+    statestore:replace(NewElection).
 
 garbage_collect_elections_older_than(OldestNeededElectionId, State) ->
     NeededElectionPredicate = fun({ElectionId, _}) -> 
