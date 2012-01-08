@@ -3,29 +3,6 @@
 -include_lib("lock_state.hrl").
 
 %%% =============================
-%%% Test Helpers
-%%% =============================
-
-%% Meck stub modules, used to enable decoupled unit tests
-setup() ->
-    Mods = [mock_lock_persistence, mock_comms],
-    meck:new(Mods),
-    meck:expect(mock_lock_persistence, lock_available, 1, ok),
-    meck:expect(mock_lock_persistence, lock_holder_changed, 1, ok),
-    meck:expect(mock_lock_persistence, lock_granted, 1, ok),
-    meck:expect(mock_comms, send_lock, 1, ok),
-    Mods.
-
-teardown(Mods) ->
-    meck:unload(Mods).
-
-add_dummy_client_to_queue(State) ->
-    add_client_to_queue(State, dummy_client).
-add_client_to_queue(State, Client) ->    
-    State#state{queue = queue:in(Client, State#state.queue)}.
-
-
-%%% =============================
 %%% Startup tests
 %%% =============================
 new_lock_has_no_client_queue_test() ->
@@ -127,3 +104,48 @@ with_queued_clients_send_lock_to_next_in_queue() ->
     ClientsQueuedState = add_client_to_queue(add_client_to_queue(InitState, a), b),
     {reply, ok, _FinState} = lock:handle_call({release, a}, sender, ClientsQueuedState),
     ?assert(meck:called(mock_comms, send_lock, [b])).
+
+
+%%% =============================
+%%% Functional test
+%%% =============================
+lock_functional_test() -> 
+    lock:start_link(lock_no_persistence, simple_comms),
+    ?assert( queue:is_empty(lock:get_queue()) ),
+
+    MockA = nspy:mock(),
+    lock:acquire(MockA),
+    nspy:assert_message_received(MockA, lock),
+
+    MockB = nspy:mock(),
+    lock:acquire(MockB),
+
+    lock:release(MockA),
+    nspy:assert_message_received(MockB, lock),    
+
+    lock:release(MockB),
+    ?assert( queue:is_empty(lock:get_queue()) ),
+    lock:stop().
+
+
+%%% =============================
+%%% Test Helpers
+%%% =============================
+
+%% Meck stub modules, used to enable decoupled unit tests
+setup() ->
+    Mods = [mock_lock_persistence, mock_comms],
+    meck:new(Mods),
+    meck:expect(mock_lock_persistence, lock_available, 1, ok),
+    meck:expect(mock_lock_persistence, lock_holder_changed, 1, ok),
+    meck:expect(mock_lock_persistence, lock_granted, 1, ok),
+    meck:expect(mock_comms, send_lock, 1, ok),
+    Mods.
+
+teardown(Mods) ->
+    meck:unload(Mods).
+
+add_dummy_client_to_queue(State) ->
+    add_client_to_queue(State, dummy_client).
+add_client_to_queue(State, Client) ->    
+    State#state{queue = queue:in(Client, State#state.queue)}.

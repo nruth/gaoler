@@ -79,9 +79,12 @@ handle_cast(stop, State) ->
     {stop, normal, State}.
 
 %% calls a function on the lock module set in State
+%% Args should be a list, but will be called as separate params
 persistence_callback(FunctionName, Args, State) ->
     apply(State#state.persistence_module, FunctionName, Args).
 
+%% calls a function on the comms module set in State
+%% Args should be a list, but will be called as separate params
 comms(FunctionName, Args, State) -> 
     apply(State#state.comms_module, FunctionName, Args).
 
