@@ -5,12 +5,7 @@ datastore_without_lock_test() ->
     datastore:start(),
     {ok, 0} = datastore:read(),
     TimesToIncrement = 100,
-    Coordinator = self(),
-    % spawn processes on local node to perform operation
-    Pids = [spawn_link(fun() -> perform_unsafe_operation(Coordinator) end) 
-            || _X <- lists:seq(1,TimesToIncrement)],
-    % all processes have to complete before we can check return value
-    wait_operations(Pids),
+    fork_run_with_barrier(TimesToIncrement, fun perform_unsafe_operation/0),
 
     % check if all processes has incremented the value
     {ok, Result} = datastore:read(),
@@ -22,27 +17,37 @@ accumulated_consistency_test() ->
     datastore:start(),
     {ok, 0} = datastore:read(),
     TimesToIncrement = 100,
-    Coordinator = self(),
-
-    % spawn processes on local node to perform operation
-    Pids = [spawn_link(fun() -> perform_atomic_operation(Coordinator) end) 
-            || _X <- lists:seq(1,TimesToIncrement)],
-
-    % all processes have to complete before we can check return value
-    wait_operations(Pids),
+    fork_run_with_barrier(TimesToIncrement, fun perform_atomic_operation/0),
 
     % check if all processes has incremented the value
     {ok, TimesToIncrement} = datastore:read(),
     datastore:stop().
 
-perform_unsafe_operation(Coordinator) ->
-    read_and_increment_value(),
-    Coordinator ! {self(), done}.
+%% run fun Work on NumWorkers parallel procs
+%% returns when all workers finish (barrier)
+fork_run_with_barrier(NumWorkers, Work) ->
+    Coordinator = self(),
+    %% generate a fun wrapping the work to be done
+    Worker = fun(F) ->
+        fun() ->
+            F(),
+            Coordinator ! {self(), done} %% signal that work is done
+        end
+    end,
 
-perform_atomic_operation(Coordinator) ->
+    % spawn processes on local node to perform operation
+    Pids = [spawn_link(Worker(Work)) || _X <- lists:seq(1,NumWorkers)],
+
+    % all processes have to complete before we can check return value
+    wait_operations(Pids).
+
+perform_unsafe_operation() ->
+    read_and_increment_value().
+
+perform_atomic_operation() ->
     lock:acquire(self()),
     wait_for_lock(),
-    perform_unsafe_operation(Coordinator),
+    perform_unsafe_operation(),
     lock:release(self()).
 
 wait_operations([Pid|Tail]) ->
