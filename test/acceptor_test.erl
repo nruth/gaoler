@@ -2,15 +2,18 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("acceptor_state.hrl").
 
--define(NO_ELECTIONS, #state{}).
--define(ONE_ELECTION(E), #state{elections = statestore:add(E)}).
+-define(ACCEPTOR_STORAGE, acceptor_state_test).
+-define(INITIAL_STATE, #state{elections=?ACCEPTOR_STORAGE}).
+-define(ADD_ONE_ELECTION(E), statestore:add(?ACCEPTOR_STORAGE, E)).
 -define(NO_PROMISES, #election{}).
 -define(PROMISED(N), #election{id=1, promised=N}).
--define(PROMISED_AND_ACCEPTED(N, A), #election{id=1, promised=N, accepted=A}).
+-define(PROMISED_AND_ACCEPTED(N, A), ?PROMISED_AND_ACCEPTED(1, N, A)).
+-define(PROMISED_AND_ACCEPTED(ID, N, A), #election{id=ID, promised=N, accepted=A}).
+
 
 %%%=
 setup() ->
-    statestore:create().
+    statestore:create(?ACCEPTOR_STORAGE).
 
 teardown(Name) ->
     ets:delete(Name).
@@ -28,8 +31,8 @@ promise_requests_test_() ->
 
 should_send_promise_when_no_higher_promises_made() ->
     Sender = nil,
-    InitialState = ?NO_ELECTIONS,
-    {reply, Reply, _} = acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
+    {reply, Reply, _} = acceptor:handle_call({prepare, {1,5}}, Sender, 
+                                             ?INITIAL_STATE),
     ?assertEqual({promised, 5, no_value}, Reply).
 
 should_send_highest_promise_when_lower_prepare_received() ->
@@ -37,15 +40,15 @@ should_send_highest_promise_when_lower_prepare_received() ->
         % its round from succeeding and reuse of the same promised message
         % allows simpler acceptor
     Sender = nil,
-    InitialState = ?ONE_ELECTION(?PROMISED(6)),
-    {reply, Reply, _} = acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
+    ?ADD_ONE_ELECTION(?PROMISED(6)),
+    {reply, Reply, _} = acceptor:handle_call({prepare, {1,5}}, Sender, ?INITIAL_STATE),
     ?assertEqual({promised, 6, no_value}, Reply).
 
 should_not_change_state_when_receiving_lower_prepare_request() ->
     Sender = nil,
-    InitialState = ?ONE_ELECTION(?PROMISED(6)),
-    acceptor:handle_call({prepare, {1,5}}, Sender, InitialState),
-    {1, CurrentElection} = statestore:find(1),
+    ?ADD_ONE_ELECTION(?PROMISED(6)),
+    acceptor:handle_call({prepare, {1,5}}, Sender, ?INITIAL_STATE),
+    {1, CurrentElection} = statestore:find(?ACCEPTOR_STORAGE, 1),
     ?assertMatch(#election{promised=6}, CurrentElection).
 
 
@@ -61,17 +64,19 @@ accept_request_state_changes_test_() ->
 
 should_update_accepted_when_higher_round_accept_requested() ->
     Sender = nil, 
-    InitialState = ?ONE_ELECTION(?PROMISED_AND_ACCEPTED(4, prev)),
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(4, prev)),
     Proposal = {accept, {1,5}, v},
-    acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({1, #election{accepted = {5, v}}}, statestore:find(1)).
+    acceptor:handle_call(Proposal, Sender, ?INITIAL_STATE),
+    ?assertMatch({1, #election{accepted = {5, v}}}, 
+                 statestore:find(?ACCEPTOR_STORAGE, 1)).
 
 should_not_change_accepted_when_lower_round_accept_requested() ->
     Sender = nil, 
-    InitialState = ?ONE_ELECTION(?PROMISED_AND_ACCEPTED(6, prev)),
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(6, prev)),
     Proposal = {accept, {1,5}, v},
-    acceptor:handle_call(Proposal, Sender, InitialState),
-    ?assertMatch({1, #election{accepted = prev}}, statestore:find(1)).
+    acceptor:handle_call(Proposal, Sender, ?INITIAL_STATE),
+    ?assertMatch({1, #election{accepted = prev}}, 
+                 statestore:find(?ACCEPTOR_STORAGE, 1)).
 
 accept_request_replies_test_() -> 
     {foreach,
@@ -86,23 +91,23 @@ accept_request_replies_test_() ->
 
 should_reply_accept_for_promised_round() ->
     Sender = nil,
-    InitialState = ?ONE_ELECTION(?PROMISED(5)),
+    ?ADD_ONE_ELECTION(?PROMISED(5)),
     Proposal = {accept, {1,5}, v},
-    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, InitialState),
+    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, ?INITIAL_STATE),
     ?assertEqual({accepted, 5, v}, Reply).
 
 should_reply_accept_for_round_higher_than_promise() ->
     Sender = nil,
-    InitialState = ?ONE_ELECTION(?PROMISED(3)),
+    ?ADD_ONE_ELECTION(?PROMISED(3)),
     Proposal = {accept, {1,5}, v},
-    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, InitialState),
+    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, ?INITIAL_STATE),
     ?assertEqual({accepted, 5, v}, Reply).
 
 should_reply_reject_to_lower_round_than_promised() ->
     Sender = nil,
-    InitialState = ?ONE_ELECTION(?PROMISED(6)),
+    ?ADD_ONE_ELECTION(?PROMISED(6)),
     Proposal = {accept, {1,5}, v},
-    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, InitialState),
+    {reply, Reply, _} = acceptor:handle_call(Proposal, Sender, ?INITIAL_STATE),
     ?assertEqual({reject, 5}, Reply).
 
 
@@ -119,7 +124,8 @@ acceptor_garbage_collection_test_() ->
     ].
 
 should_record_last_gc_performed() ->
-    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 14}, ?NO_ELECTIONS),
+    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 14},
+                                              ?INITIAL_STATE),
     ?assertEqual(14, NewState#state.oldest_remembered_state).
 
 should_remove_older_elements_from_state() ->
@@ -128,11 +134,11 @@ should_remove_older_elements_from_state() ->
     ?assertEqual([], NewState#state.elections).
 
 should_retain_newer_elements_in_state() ->
-    State = #state{elections=[{3, a}, {2,z}, {1, a}]},
+    State = #state{elections=[{3, a2}, {2,z}, {1, a}]},
     {noreply, NewState} = acceptor:handle_cast({gc_older_than, 2}, State),
     ?assertEqual([{3, a}, {2,z}], NewState#state.elections).
 
 should_leave_no_elections_intact() ->
-    State = ?NO_ELECTIONS,
+    State = ?INITIAL_STATE,
     {noreply, NewState} = acceptor:handle_cast({gc_older_than, 2}, State),
     ?assertEqual([], NewState#state.elections).

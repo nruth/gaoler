@@ -1,28 +1,27 @@
 -module(statestore).
 -export([
-         create/0,
-         find/1,
-         replace/1,
-         add/1
+         create/1,
+         find/2,
+         replace/2,
+         add/2
         ]).
 -include_lib("acceptor_state.hrl").
--define(TABLE, acceptor_state).
 
-create() ->
-    ets:new(?TABLE, [named_table, set, {keypos, #election.id}, public]).
+create(TableName) ->
+    ets:new(TableName, [named_table, set, {keypos, #election.id}, public]).
 
-find(ElectionId) ->
-    case ets:lookup(?TABLE, ElectionId) of
+find(TableName, ElectionId) ->
+    case ets:lookup(TableName, ElectionId) of
         [] ->
             false;
         [FoundElection] ->
             {ElectionId, FoundElection}
     end.
 
-replace(NewElection) ->
-    add(NewElection).
+replace(TableName, NewElection) ->
+    add(TableName, NewElection).
 
-add(ElectionRecord) ->    
-    ets:insert(?TABLE, ElectionRecord).
+add(TableName, ElectionRecord) ->    
+    ets:insert(TableName, ElectionRecord).
 
                 

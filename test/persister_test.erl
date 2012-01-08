@@ -80,7 +80,7 @@ recover_state_from_logfiles_test_() ->
     }.
 
 when_no_file_available_return_empty_state() ->
-    ?assertEqual(#state{elections=[]}, 
+    ?assertEqual(#state{elections=undefined}, 
                  persister:load_saved_state()). 
 
 when_file_exists_load_last_entries()->

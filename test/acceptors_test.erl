@@ -1,6 +1,5 @@
 -module(acceptors_test).
 -include_lib("eunit/include/eunit.hrl").
--define(NOTEST, true).
 
 setup() ->
     Mods = [proposer, gaoler, learners],

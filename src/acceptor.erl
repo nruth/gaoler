@@ -21,9 +21,9 @@
 %% @doc Starts the server.
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [?MODULE], []).
 start_link(Name) ->
-    gen_server:start_link({local, Name}, ?MODULE, [], []).
+    gen_server:start_link({local, Name}, ?MODULE, [Name], []).
 
 %%--------------------------------------------------------------------
 %% @doc Stops the server.
@@ -48,9 +48,9 @@ accept(Acceptor, {Election,Round}, Value) ->
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
-init([]) -> 
+init([Name]) -> 
 %    StartState = persister:load_saved_state(),
-    Store = statestore:create(),
+    Store = statestore:create(Name),
     StartState = #state{elections = Store},
     {ok, StartState}.
 
@@ -68,7 +68,7 @@ handle_cast(stop, State) -> {stop, normal, State}.
 %%% Prepare requests
 %%%=================================================================== 
 handle_prepare({ElectionId, Round}, State) ->
-    case statestore:find(ElectionId) of
+    case statestore:find(State#state.elections, ElectionId) of
         {ElectionId, FoundElection} ->
             handle_prepare_for_existing_election(ElectionId, Round, FoundElection, State);
         false ->
@@ -78,14 +78,14 @@ handle_prepare({ElectionId, Round}, State) ->
 handle_prepare_for_existing_election(_ElectionId, Round, FoundElection, State) ->
     HighestPromise = max(Round, FoundElection#election.promised),
     NewElection = FoundElection#election{promised = HighestPromise},
-    update_election(NewElection),
+    update_election(State#state.elections, NewElection),
     Reply = {promised, HighestPromise, NewElection#election.accepted},
     %persister:remember_promise(ElectionId, NewElection#election.promised),
     {reply, Reply, State}.
 
 create_new_election_from_prepare_request(ElectionId, Round, State) ->
     NewElection = #election{id = ElectionId, promised = Round},
-    add_new_election(NewElection),
+    add_new_election(State#state.elections, NewElection),
     %persister:remember_promise(ElectionId, Round),
     {reply, {promised, Round, NewElection#election.accepted}, State}.
 
@@ -94,7 +94,7 @@ create_new_election_from_prepare_request(ElectionId, Round, State) ->
 %%%=================================================================== 
 handle_accept({ElectionId, Round}, Value, State) ->
     {Reply, NextState} = 
-        case statestore:find(ElectionId) of
+        case statestore:find(State#state.elections, ElectionId) of
             {ElectionId, _ElectionRecord}=Election ->
                 handle_accept_for_election(Round, Value, Election, State);
             false ->
@@ -107,7 +107,7 @@ handle_accept_for_election(Round, Value, {ElectionId, Election}, State)
     NewElection = Election#election{id = ElectionId, 
                                     promised = Round, 
                                     accepted = {Round, Value}},
-    update_election(NewElection),
+    update_election(State#state.elections, NewElection),
     %persister:remember_vote(ElectionId, Round, Value),
     {{accepted, Round, Value}, State};
 handle_accept_for_election(Round, _Value, _Election, State) ->
@@ -117,7 +117,7 @@ create_new_election_from_accept_request(ElectionId, Round, Value, State) ->
     NewElection = #election{id = ElectionId, 
                             promised = Round,
                             accepted = {Round, Value}},
-    add_new_election(NewElection),
+    add_new_election(State#state.elections, NewElection),
     %persister:remember_vote(ElectionId, Round, Value),
     {{accepted, Round, Value}, State}.
 
@@ -125,18 +125,20 @@ create_new_election_from_accept_request(ElectionId, Round, Value, State) ->
 %%%===================================================================
 %%% Internal functions
 %%%=================================================================== 
-add_new_election(NewElection) ->
-    statestore:add(NewElection).
+add_new_election(Elections, NewElection) ->
+    statestore:add(Elections, NewElection).
 
-update_election(NewElection) ->
-    statestore:replace(NewElection).
+update_election(Elections, NewElection) ->
+    statestore:replace(Elections, NewElection).
 
 garbage_collect_elections_older_than(OldestNeededElectionId, State) ->
     NeededElectionPredicate = fun({ElectionId, _}) -> 
         ElectionId >= OldestNeededElectionId
     end,
-    UpdatedElections = lists:takewhile(NeededElectionPredicate, State#state.elections),
-    State#state{elections = UpdatedElections, oldest_remembered_state = OldestNeededElectionId}.
+    UpdatedElections = lists:takewhile(NeededElectionPredicate, 
+                                       State#state.elections),
+    State#state{elections = UpdatedElections, 
+                oldest_remembered_state = OldestNeededElectionId}.
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate

@@ -1,6 +1,6 @@
 -record(state, {
     oldest_remembered_state = 0,
-    elections = []
+    elections = undefined
 }).
 
 -record(election, {
