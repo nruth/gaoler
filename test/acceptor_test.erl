@@ -116,12 +116,15 @@ should_reply_reject_to_lower_round_than_promised() ->
 %% -- TODO: Needs updating to use statestore instead of lists
 %%
 acceptor_garbage_collection_test_() ->
-    [
-        fun should_record_last_gc_performed/0,
-        fun should_remove_older_elements_from_state/0,
-        fun should_retain_newer_elements_in_state/0,
-        fun should_leave_no_elections_intact/0
-    ].
+    {foreach, 
+     fun setup/0,
+     fun teardown/1,      
+     [
+      fun should_record_last_gc_performed/0,
+      fun should_remove_older_elements_from_state/0,
+      fun should_retain_newer_elements_in_state/0
+     ]
+    }.
 
 should_record_last_gc_performed() ->
     {noreply, NewState} = acceptor:handle_cast({gc_older_than, 14},
@@ -129,16 +132,24 @@ should_record_last_gc_performed() ->
     ?assertEqual(14, NewState#state.oldest_remembered_state).
 
 should_remove_older_elements_from_state() ->
-    State = #state{elections=[{3, a}, {2,z}, {1, a}]},
-    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 4}, State),
-    ?assertEqual([], NewState#state.elections).
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(1, 1, a)),
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(2, 1, b)),
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(3, 1, c)),
+    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 4}, 
+                                               ?INITIAL_STATE),
+    ?assertEqual(false, statestore:find(NewState#state.elections, 1)),
+    ?assertEqual(false, statestore:find(NewState#state.elections, 2)),
+    ?assertEqual(false, statestore:find(NewState#state.elections, 3)).
 
 should_retain_newer_elements_in_state() ->
-    State = #state{elections=[{3, a2}, {2,z}, {1, a}]},
-    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 2}, State),
-    ?assertEqual([{3, a}, {2,z}], NewState#state.elections).
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(1, 1, a)),
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(2, 1, b)),
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(3, 1, c)),
+    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 2}, 
+                                               ?INITIAL_STATE),
+    ?assertEqual(false, statestore:find(NewState#state.elections, 1)).
 
-should_leave_no_elections_intact() ->
-    State = ?INITIAL_STATE,
-    {noreply, NewState} = acceptor:handle_cast({gc_older_than, 2}, State),
-    ?assertEqual([], NewState#state.elections).
+%% should_leave_no_elections_intact() ->
+%%     {noreply, NewState} = acceptor:handle_cast({gc_older_than, 2}, 
+%%                                                ?INITIAL_STATE),
+%%     ?assertEqual([], NewState#state.elections).

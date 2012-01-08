@@ -132,13 +132,16 @@ update_election(Elections, NewElection) ->
     statestore:replace(Elections, NewElection).
 
 garbage_collect_elections_older_than(OldestNeededElectionId, State) ->
-    NeededElectionPredicate = fun({ElectionId, _}) -> 
-        ElectionId >= OldestNeededElectionId
-    end,
-    UpdatedElections = lists:takewhile(NeededElectionPredicate, 
-                                       State#state.elections),
-    State#state{elections = UpdatedElections, 
-                oldest_remembered_state = OldestNeededElectionId}.
+    statestore:gc(State#state.elections, OldestNeededElectionId),
+    State#state{oldest_remembered_state = OldestNeededElectionId}.
+
+    %% NeededElectionPredicate = fun({ElectionId, _}) -> 
+    %%     ElectionId >= OldestNeededElectionId
+    %% end,
+    %% UpdatedElections = lists:takewhile(NeededElectionPredicate, 
+    %%                                    State#state.elections),
+    %% State#state{elections = UpdatedElections, 
+    %%             oldest_remembered_state = OldestNeededElectionId}.
 
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
