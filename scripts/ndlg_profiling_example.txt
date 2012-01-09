@@ -1,0 +1,11 @@
+cd(ebin).
+
+Lock = fun() ->
+lock:acquire(self()),
+receive lock -> ok end,
+lock:release(self())
+end.
+
+lock:start_link(lock_no_persistence, simple_comms).
+
+measurer:throughput(Lock, 1000, 10).
