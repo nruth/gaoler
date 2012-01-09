@@ -1,7 +1,13 @@
 % persist the lock queue
 % implicitly persists the lock holder (queue head)
 -module (lock_persist_holder_queue).
--export ([lock_granted/1, lock_available/1, lock_holder_changed/1]).
+-export ([lock_granted/1, lock_available/1, lock_holder_changed/1, init/0]).
+
+%% called to perform any start-up procedure for the lock persistence
+%% e.g. create dets table
+init() ->
+    % do nothing, no persistence
+    ok.
 
 %% called when the lock is held by the server, 
 %% and is being issued to a client

@@ -25,11 +25,13 @@ stop() ->
 %%% Internals
 
 %% starts with empty data store and sets the lock module
-init([PersistenceModule, CommsModule]) -> {ok, #state{
-    queue = queue:new(), 
-    persistence_module = PersistenceModule,
-    comms_module = CommsModule    
-}}.
+init([PersistenceModule, CommsModule]) ->
+    PersistenceModule:init(),
+    {ok, #state{
+        queue = queue:new(), 
+        persistence_module = PersistenceModule,
+        comms_module = CommsModule
+    }}.
 
 %% gen_server callback
 handle_call(get_queue, _From, State) ->

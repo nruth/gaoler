@@ -1,11 +1,17 @@
 % persist the current lock holder
 % when no holder sets to none
 -module (lock_persist_holder).
--export ([lock_granted/1, lock_available/1, lock_holder_changed/1]).
+-export ([lock_granted/1, lock_available/1, lock_holder_changed/1, init/0]).
+
+%% called to perform any start-up procedure for the lock persistence
+%% e.g. create dets table
+init() ->
+    % do nothing, no persistence
+    ok.
 
 %% called when the lock is held by the server, 
 %% and is being issued to a client
-lock_granted(_) -> 
+lock_granted(State) ->
     % do nothing, no persistence
     ok.
 
