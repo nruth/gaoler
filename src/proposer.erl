@@ -120,12 +120,10 @@ awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
     case NewState#state.accepts >= gaoler:majority() of
         false ->
             {next_state, awaiting_accepts, NewState};
-        true -> % deliver result to coordinator
-            % hack test to bcast to all replicas
-            [ {replica, Node} ! {decision, 
-                                 State#state.election, 
-                                 State#state.value#proposal.value} || 
-                Node <- [node()|nodes()] ],
+        true -> % deliver result to coordinator            
+            NewState#state.reply_to ! {decision, 
+                                       State#state.election, 
+                                       State#state.value#proposal.value},
             {stop, normal, NewState}
     end;
 
