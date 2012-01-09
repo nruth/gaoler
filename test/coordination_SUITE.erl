@@ -64,7 +64,8 @@ clean_up_logdirectory() ->
 %%%%%%%%%%%%%%%%
    
 single_request_test(_Config) ->
-    ok = replica:request(acquire, self()).
+    ok = replica:request(acquire, self()),
+    ok = replica:request(release, self()).
     
 centralised_lock_without_consensus_test(_Config) ->
     datastore:start(),
@@ -101,7 +102,7 @@ wait_atomic_operations([Pid|Tail]) ->
             [ok|wait_atomic_operations(Tail)]
     end;
 wait_atomic_operations([]) ->
-    case queue:is_empty(centralised_lock:get_queue()) of 
+    case queue:is_empty(lock:get_queue()) of 
         true ->
             [];
         false ->
@@ -113,10 +114,10 @@ wait_atomic_operations([]) ->
 
 perform_atomic_operation(Parent, noconsensus) ->
     Client = self(),
-    centralised_lock:acquire(Client),
+    lock:acquire(Client),
     wait_for_lock(),
     read_and_increment_value(),
-    centralised_lock:release(Client),
+    lock:release(Client),
     Parent ! {self(), done};
 perform_atomic_operation(Parent, consensus) ->
     Client = self(),
@@ -137,4 +138,3 @@ read_and_increment_value() ->
     NewValue = Value + 1,
     ok = datastore:write(NewValue).
   
-
