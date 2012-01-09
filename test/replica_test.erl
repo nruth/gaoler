@@ -10,7 +10,7 @@ setup() ->
                 fun({Slot, Proposal}) ->
                         self() ! {decision, Slot, Proposal} 
                 end),
-    replica:start(centralised_lock),
+    replica:start_link(centralised_lock),
     Mods.
 
 teardown(Mods) ->

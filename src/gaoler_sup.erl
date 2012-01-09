@@ -24,7 +24,7 @@ start_link() ->
 % 
 %              gaoler_sup
 %           /      \       \
-%     house_sup    gaoler  ticket_machine
+%     house_sup    gaoler  lock
 %     /       \
 % acceptor   cache
 %
@@ -32,14 +32,16 @@ init([]) ->
     GaolerService = {gaoler, {gaoler, start_link, []},
 		     permanent, 2000, worker, [gaoler]},
 
-    TicketMachine = {ticket_machine, {ticket_machine, start_link, []},
-		     permanent, 2000, worker, [ticket_machine]},
-		     
-	HouseSup = {house_sup, {house_sup, start_link, []},
-             permanent, 2000, supervisor, [house_sup]},
-             
-	% Centralised Lock Service
-	CentralisedLockService = {centralised_lock, {centralised_lock, start_link, []},
-		     permanent, 2000, worker, [centralised_lock]},
+    
+    HouseSup = {house_sup, {house_sup, start_link, []},
+                permanent, 2000, supervisor, [house_sup]},
+    
+    % Lock Service
+    LockService = {lock, {lock, start_link, [lock_no_persistence, simple_comms]},
+                              permanent, 2000, worker, [lock]},
 
-    {ok, {?SUPFLAGS, [GaolerService, HouseSup, TicketMachine, CentralisedLockService]}}.
+    % RSM
+    RSM = {replica, {replica, start_link, [lock]},
+           permanent, 2000, worker, [replica]},
+    
+    {ok, {?SUPFLAGS, [GaolerService, HouseSup, LockService, RSM]}}.

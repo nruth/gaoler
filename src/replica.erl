@@ -1,6 +1,6 @@
 -module(replica).
 -export([request/2]).
--export([loop/1, start/1, stop/0]).
+-export([loop/1, start_link/1, stop/0]).
 
 -record(replica, {slot_num = 1,
                   proposals = [],
@@ -26,9 +26,11 @@ client_proxy(Operation, Client) ->
     end.
     
 %%% Replica 
-start(LockApplication) ->
+start_link(LockApplication) ->
     ReplicaState = #replica{application=LockApplication},
-    register(replica, spawn_link(fun() -> loop(ReplicaState) end)).    
+    Pid = spawn_link(fun() -> loop(ReplicaState) end),
+    register(replica, Pid),
+    {ok, Pid}.
 
 stop() ->
     ?SERVER ! stop.
