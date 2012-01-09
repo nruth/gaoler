@@ -60,7 +60,7 @@ init([Name]) ->
 %    StartState = persister:load_saved_state(),
     Store = statestore:create(Name),
     StartState = #state{elections = Store,
-                        ready_to_gc = sets:new()},
+                        ready_to_gc = []},
     erlang:send_after(?GC_INTERVAL, self(), gc_trigger),
     {ok, StartState}.
 
@@ -73,15 +73,14 @@ handle_call({accept, {ElectionId, Round}, Value}, _From, State) ->
 handle_cast({gc_older_than, ElectionId}, State) ->
     {noreply, garbage_collect_elections_older_than(ElectionId, State)};
 handle_cast({ready_to_gc, From, ElectionId}, State) ->
-    NewState = State#state{ready_to_gc = 
-                               sets:add_element({From, ElectionId},
-                                                State#state.ready_to_gc)},
+    Upd = lists:keystore(From, 1, State#state.ready_to_gc, {From, ElectionId}),
+    NewState = State#state{ready_to_gc = Upd},
     {noreply, NewState};
 handle_cast(stop, State) -> {stop, normal, State}.
 
 handle_info(gc_trigger, State) -> 
     NewState = 
-        case can_gc_be_performed(sets:to_list(State#state.ready_to_gc)) of
+        case can_gc_be_performed(State#state.ready_to_gc) of
             {ok, Id} ->
                 garbage_collect_elections_older_than(Id, State);
             false -> 

@@ -4,7 +4,7 @@
 
 -define(ACCEPTOR_STORAGE, acceptor_state_test).
 -define(INITIAL_STATE, #state{elections=?ACCEPTOR_STORAGE,
-                              ready_to_gc=sets:new()}).
+                              ready_to_gc=[]}).
 -define(ADD_ONE_ELECTION(E), statestore:add(?ACCEPTOR_STORAGE, E)).
 -define(NO_PROMISES, #election{}).
 -define(PROMISED(N), #election{id=1, promised=N}).
@@ -150,14 +150,11 @@ should_retain_newer_elements_in_state() ->
                                                ?INITIAL_STATE),
     ?assertEqual(false, statestore:find(NewState#state.elections, 1)).
 
-when_received_remove_msgs_from_all_replicas_run_gc_test() ->
+should_add_gc_request_to_state_when_issued_test() ->
     Setup = setup(),    
-    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(1, 1, a)),
-    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(2, 1, b)),
-    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(3, 1, c)),
     {noreply, NewState} = acceptor:handle_cast({ready_to_gc, replica1, 20}, 
                                                ?INITIAL_STATE),
-    ?assert(sets:is_element({replica1, 20}, NewState#state.ready_to_gc)), 
+    ?assertEqual([{replica1, 20}], NewState#state.ready_to_gc), 
     teardown(Setup).
     
 
