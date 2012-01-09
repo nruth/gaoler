@@ -1,10 +1,5 @@
 -module (measurer).
--include_lib("records.hrl").
--export ([
-    throughput/3,
-    cumulative_mean_latency/2, 
-    time_once/1
-]).
+-export ([ throughput/3 ]).
 
 %% execute Work repeatedly for Duration on Num_Workers processes
 %% returns a list of completion times to use in throughput calculation
