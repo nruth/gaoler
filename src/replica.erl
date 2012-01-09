@@ -147,5 +147,6 @@ add_proposal_to_state(Proposal, State) ->
 remove_proposal_from_state(SlotNumber, State) ->
     State#replica{proposals = lists:keydelete(SlotNumber, 1, State#replica.proposals)}.
 
-send_to_leaders(Proposal, _State) ->
-    proposer:propose(Proposal).
+send_to_leaders({Slot, Proposal}, _State) ->
+    self() ! {decision, Slot, Proposal}.
+    %proposer:propose(Proposal).
