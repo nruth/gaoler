@@ -64,8 +64,8 @@ with_queued_clients_add_client_to_queue() ->
 
 with_empty_lock_queue_run_persistence_lock_granted_callback() ->
     {ok, InitState} = lock:init([mock_persistence, mock_comms]),
-    {reply, ok, FinState} = lock:handle_call({acquire, someclient}, sender, InitState),
-    ?assert(meck:called(mock_persistence, lock_granted, [FinState])).
+    {reply, ok, FinState=#state{}} = lock:handle_call({acquire, someclient}, sender, InitState),
+    ?assert(meck:called(mock_persistence, lock_granted, [FinState#state.queue])).
 
 with_queued_clients_dont_run_persistence_lock_granted_callback() ->
     {ok, InitState} = lock:init([mock_persistence, mock_comms]),
