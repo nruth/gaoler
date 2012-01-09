@@ -25,11 +25,13 @@ stop() ->
 %%% Internals
 
 %% starts with empty data store and sets the lock module
-init([PersistenceModule, CommsModule]) -> {ok, #state{
-    queue = queue:new(), 
-    persistence_module = PersistenceModule,
-    comms_module = CommsModule    
-}}.
+init([PersistenceModule, CommsModule]) ->
+    PersistenceModule:init(),
+    {ok, #state{
+        queue = queue:new(), 
+        persistence_module = PersistenceModule,
+        comms_module = CommsModule
+    }}.
 
 %% gen_server callback
 handle_call(get_queue, _From, State) ->
@@ -44,9 +46,10 @@ handle_call({release, Client}, _From, State) ->
 handle_acquire_req(Client, #state{queue=Queue}=State) ->
     NewQueue = queue:in(Client, Queue),
     NewState = State#state{queue=NewQueue},
-    % if the queue is empty we can send out the lock
+
+    % if the queue was empty we can send out the lock
     case queue:is_empty(Queue) of
-        true -> persistence_callback(lock_granted, [NewState], NewState),
+        true -> persistence_callback(lock_granted, [NewQueue], NewState),
                 comms(send_lock, [Client], State);
         false -> noop
     end,
@@ -63,11 +66,11 @@ handle_release_req(_Client, State) ->
             case queue:peek(NewQueue) of
                 {value, NextLockHolder} -> 
                     % yes: send them the lock
-                    persistence_callback(lock_holder_changed, [State], State),
+                    persistence_callback(lock_holder_changed, [NewQueue], State),
                     comms(send_lock, [NextLockHolder], State);
                 empty -> 
                     % no: wait for the next request
-                    persistence_callback(lock_available, [State], State)
+                    persistence_callback(lock_available, [NewQueue], State)
             end,
             State#state{queue=NewQueue};
         {empty, EmptyQueue} -> % no lock is held, do nothing
