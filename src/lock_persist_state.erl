@@ -6,23 +6,20 @@
 %% called to perform any start-up procedure for the lock persistence
 %% e.g. create dets table
 init() ->
-    % do nothing, no persistence
-    ok.
+    {ok, lock_state} = dets:open_file(lock_state, []).
 
 %% called when the lock is held by the server, 
 %% and is being issued to a client
 lock_granted(_) -> 
-    % do nothing, no persistence
-    ok.
+    ok = dets:insert(lock_state, {lock,granted}).
 
 %% called when the lock is held by the server, ready for issue
 lock_available(_) -> 
-    % do nothing, no persistence
-    ok.
+    ok = dets:insert(lock_state, {lock,available}).
 
 %% called when the lock is released by a client
 %% and another client is queueing for it
 %% so they will be issued it immediately
 lock_holder_changed(_) -> 
-    % do nothing, no persistence
+    % no-op; the lock is already in granted state
     ok.
