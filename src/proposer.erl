@@ -121,9 +121,11 @@ awaiting_accepts({accepted, Round, _Value}, #state{round=Round}=State) ->
         false ->
             {next_state, awaiting_accepts, NewState};
         true -> % deliver result to coordinator
-            NewState#state.reply_to ! {decision, 
-                                       State#state.election, 
-                                       State#state.value#proposal.value},
+            % hack test to bcast to all replicas
+            [ {replica, Node} ! {decision, 
+                                 State#state.election, 
+                                 State#state.value#proposal.value} || 
+                Node <- [node()|nodes()] ],
             {stop, normal, NewState}
     end;
 
