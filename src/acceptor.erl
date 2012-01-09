@@ -4,6 +4,7 @@
         terminate/2, code_change/3]).
 
 -include_lib("acceptor_state.hrl").
+-define(GC_INTERVAL, 1000).
 
 %%%===================================================================
 %%% API
@@ -51,7 +52,9 @@ accept(Acceptor, {Election,Round}, Value) ->
 init([Name]) -> 
 %    StartState = persister:load_saved_state(),
     Store = statestore:create(Name),
-    StartState = #state{elections = Store},
+    StartState = #state{elections = Store,
+                        ready_to_gc = sets:new()},
+    erlang:send_after(?GC_INTERVAL, self(), gc_trigger),
     {ok, StartState}.
 
 % gen_server callback
@@ -62,7 +65,31 @@ handle_call({accept, {ElectionId, Round}, Value}, _From, State) ->
 
 handle_cast({gc_older_than, ElectionId}, State) ->
     {noreply, garbage_collect_elections_older_than(ElectionId, State)};
+handle_cast({ready_to_gc, From, ElectionId}, State) ->
+    NewState = State#state{ready_to_gc = 
+                               sets:add_element({From, ElectionId},
+                                                State#state.ready_to_gc)},
+    {noreply, NewState};
 handle_cast(stop, State) -> {stop, normal, State}.
+
+handle_info(gc_trigger, State) -> 
+    NewState = 
+        case can_gc_be_performed(State#state.ready_to_gc) of
+            {ok, Id} ->
+                garbage_collect_elections_older_than(Id, State);
+            false -> 
+                State
+        end,
+    erlang:send_after(?GC_INTERVAL, self(), gc_trigger),
+    {noreply, NewState}.
+
+can_gc_be_performed(Reqs) ->
+    Max = lists:max([N || {_, N} <- sets:to_list(Reqs)]),
+    % TODO: should check all is reqs from all RSMs
+    case lists:all(fun({_, Id}) -> Id == Max end, Reqs) of
+        true -> {ok, Max};
+        false -> false
+    end.
 
 %%%===================================================================
 %%% Prepare requests
@@ -146,6 +173,5 @@ garbage_collect_elections_older_than(OldestNeededElectionId, State) ->
 %%%===================================================================
 %%% Uninteresting gen_server boilerplate
 %%%===================================================================
-handle_info(_Info, State) -> {noreply, State}.
 terminate(_Reason, _State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
