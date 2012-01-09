@@ -15,7 +15,8 @@
 	 stop/0, 
 	 stop/1,
 	 prepare/2, 
-	 accept/3
+	 accept/3,
+         gc_this/3
 	]).
 
 %%--------------------------------------------------------------------
@@ -46,6 +47,12 @@ prepare(Acceptor, {Election,Round}) ->
 accept(Acceptor, {Election,Round}, Value) ->
   gen_server:call(Acceptor, {accept, {Election, Round}, Value}).
 
+%%--------------------------------------------------------------------
+%% @doc Request that the acceptor votes for the proposal
+%%--------------------------------------------------------------------
+gc_this(Acceptor, From, Election) ->
+    gen_server:cast(Acceptor, {ready_to_gc, From, Election}).
+
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
@@ -74,7 +81,7 @@ handle_cast(stop, State) -> {stop, normal, State}.
 
 handle_info(gc_trigger, State) -> 
     NewState = 
-        case can_gc_be_performed(State#state.ready_to_gc) of
+        case can_gc_be_performed(sets:to_list(State#state.ready_to_gc)) of
             {ok, Id} ->
                 garbage_collect_elections_older_than(Id, State);
             false -> 
@@ -84,11 +91,10 @@ handle_info(gc_trigger, State) ->
     {noreply, NewState}.
 
 can_gc_be_performed(Reqs) ->
-    Max = lists:max([N || {_, N} <- sets:to_list(Reqs)]),
     % TODO: should check all is reqs from all RSMs
-    case lists:all(fun({_, Id}) -> Id == Max end, Reqs) of
-        true -> {ok, Max};
-        false -> false
+    case length(Reqs) of
+        5 -> {ok, lists:min([N || {_, N} <- Reqs])};
+        _ -> false
     end.
 
 %%%===================================================================

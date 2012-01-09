@@ -97,8 +97,16 @@ consume_decisions(State) ->
         {Slot, DecidedCommand} ->
             StateAfterProposalGC = gc_proposals(Slot, DecidedCommand, State),
             StateAfterPerform = perform(DecidedCommand, StateAfterProposalGC),
+            % multicast slot to acceptors for gc every 50th decision
+            check_gc_acceptor(Slot),
             consume_decisions(StateAfterPerform)
     end.
+
+check_gc_acceptor(Slot) when Slot rem 50 == 0 ->
+    [acceptor:gc_this(Acceptor, self(), Slot) || 
+        Acceptor <- gaoler:get_acceptors()];
+check_gc_acceptor(_) ->
+    noop.
 
 %% Garbage-collects the proposal for the given slot
 %% When the command does not match the decided command
@@ -123,7 +131,7 @@ perform({ClientProxy, UniqueRef, {Operation, Client}}=Command, State) ->
         false -> % command not seen before, apply
             ResultFromFunction = (catch (State#replica.application):Operation(Client)),
             NewState = inc_slot_number(State),
-            ClientProxy ! {response, UniqueRef, {Operation, ResultFromFunction}},
+            ClientProxy ! {response, UniqueRef, {Operation, ResultFromFunction}},            
             NewState
     end.
 
@@ -147,6 +155,6 @@ add_proposal_to_state(Proposal, State) ->
 remove_proposal_from_state(SlotNumber, State) ->
     State#replica{proposals = lists:keydelete(SlotNumber, 1, State#replica.proposals)}.
 
-send_to_leaders({Slot, Proposal}, _State) ->
-    self() ! {decision, Slot, Proposal}.
-    %proposer:propose(Proposal).
+send_to_leaders(Proposal, _State) ->
+%    self() ! {decision, Slot, Proposal}.
+    proposer:propose(Proposal).

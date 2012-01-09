@@ -2,8 +2,9 @@
 -include_lib("eunit/include/eunit.hrl").
 
 setup() ->
-    Mods = [centralised_lock, proposer],
+    Mods = [centralised_lock, proposer, acceptor],
     meck:new(Mods),
+    meck:expect(acceptor, gc_this, 3, ok),
     meck:expect(centralised_lock, acquire, 1, ok),
     meck:expect(centralised_lock, release, 1, ok),
     meck:expect(proposer, propose, 
@@ -29,10 +30,10 @@ replica_test_() ->
 
 request_api_acquire() ->
     ?assertEqual(ok, replica:request(acquire, self())),
-    timer:sleep(10),
+    timer:sleep(100),
     ?assert(meck:called(proposer, propose, '_')).
 
 request_api_release() ->
     ?assertEqual(ok, replica:request(release, self())),
-    timer:sleep(10),
+    timer:sleep(100),
     ?assert(meck:called(proposer, propose, '_')).
