@@ -103,7 +103,7 @@ consume_decisions(State) ->
     end.
 
 check_gc_acceptor(Slot) when Slot rem 50 == 0 ->
-    [acceptor:gc_this(Acceptor, self(), Slot) || 
+    [acceptor:gc_this(Acceptor, node(), Slot) || 
         Acceptor <- gaoler:get_acceptors()];
 check_gc_acceptor(_) ->
     noop.
