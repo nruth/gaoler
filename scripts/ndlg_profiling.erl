@@ -2,33 +2,37 @@
 % cd(ebin). 
 % file:script('../scripts/ndlg_profiling.erl').
 
+%%% PARAMS
+PersistenceModules = [
+    lock_no_persistence, 
+    lock_persist_state, 
+    lock_persist_holder, 
+    lock_persist_queue
+].
+Duration = 5000.
+Workers = 50.
+PauseBetweenRuns = 2000.
+
+
+%% IMPLEMENTATION
+
 Lock = fun() ->
 lock:acquire(self()),
 receive lock -> ok end,
 lock:release(self())
 end.
 
-io:format('.').
-lock:start_link(lock_no_persistence, simple_comms).
-measurer:throughput(Lock, 5000, 100).
-lock:stop().
-os:cmd("mv throughput_5000sec_100procs lock_no_persistence_throughput_5000sec_100procs").
+TmpResultFilename = io_lib:format("throughput_~psec_~pprocs", [Duration, Workers]).
 
-io:format('.').
-lock:start_link(lock_persist_holder, simple_comms).
-measurer:throughput(Lock, 5000, 100).
-lock:stop().
-os:cmd("mv throughput_5000sec_100procs lock_persist_holder_throughput_5000sec_100procs").
-
-io:format('.').
-lock:start_link(lock_persist_state, simple_comms).
-measurer:throughput(Lock, 5000, 100).
-lock:stop().
-os:cmd("mv throughput_5000sec_100procs lock_persist_state_throughput_5000sec_100procs").
-
-io:format('.').
-lock:start_link(lock_persist_queue, simple_comms).
-measurer:throughput(Lock, 5000, 100).
-lock:stop().
-os:cmd("mv throughput_5000sec_100procs lock_persist_queue_throughput_5000sec_100procs").
-
+lists:map( 
+    fun(PersistenceMod) ->
+        io:format('.'),
+        timer:sleep(PauseBetweenRuns),
+        lock:start_link(PersistenceMod, simple_comms),
+        measurer:throughput(Lock, Duration, Workers),
+        lock:stop(),
+        % dynamically create and exec `mv tmpfile resultfile`
+        os:cmd(io_lib:format("mv ~s ~p_~s", [TmpResultFilename, PersistenceMod, TmpResultFilename]))
+    end,
+    PersistenceModules
+).
