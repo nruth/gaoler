@@ -2,6 +2,7 @@ persistence_modules = {'lock_no_persistence' 'lock_persist_state' 'lock_persist_
 duration = 5000;
 workers = 50;
 interval = 5e-1
+figure;
 
 set(0,'DefaultAxesColorOrder',[0 0 0],...
         'DefaultAxesLineStyleOrder','d|>|p|o'); % no lines
@@ -20,4 +21,6 @@ for i = 1:length(persistence_modules)
     plot(result(:,1), result(:,2));
 end
 
-hold('off');
+legend(strrep(strrep(persistence_modules, '_', ' '), 'lock ', ''));
+
+hold off;
