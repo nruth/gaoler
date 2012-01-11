@@ -11,11 +11,13 @@ init() ->
 %% called when the lock is held by the server, 
 %% and is being issued to a client
 lock_granted(_) -> 
-    ok = dets:insert(lock_state, {lock,granted}).
+    ok = dets:insert(lock_state, {lock,granted}),
+    dets:sync(lock_state).
 
 %% called when the lock is held by the server, ready for issue
 lock_available(_) -> 
-    ok = dets:insert(lock_state, {lock,available}).
+    ok = dets:insert(lock_state, {lock,available}),
+    dets:sync(lock_state).
 
 %% called when the lock is released by a client
 %% and another client is queueing for it

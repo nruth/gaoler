@@ -4,7 +4,7 @@
 datastore_without_lock_test() ->
     datastore:start(),
     {ok, 0} = datastore:read(),
-    TimesToIncrement = 100,
+    TimesToIncrement = 20,
     fork_run_with_barrier(TimesToIncrement, fun perform_unsafe_operation/0),
 
     % check if all processes has incremented the value
@@ -12,16 +12,26 @@ datastore_without_lock_test() ->
     ?assertNotEqual(TimesToIncrement, Result),
     datastore:stop().
 
-accumulated_consistency_test() ->
-    lock:start_link(lock_no_persistence, simple_comms),
-    datastore:start(),
-    {ok, 0} = datastore:read(),
-    TimesToIncrement = 100,
-    fork_run_with_barrier(TimesToIncrement, fun perform_atomic_operation/0),
+accumulator(Persistence) ->
+    {timeout, 30, fun() ->
+        lock:start_link(Persistence, simple_comms),
+        datastore:start(),
+        ?assertEqual({ok, 0}, datastore:read()),
+        TimesToIncrement = 20,
+        fork_run_with_barrier(TimesToIncrement, fun perform_atomic_operation/0),
 
-    % check if all processes has incremented the value
-    {ok, TimesToIncrement} = datastore:read(),
-    datastore:stop().
+        % check if all processes has incremented the value
+        {ok, Result} = datastore:read(),
+        datastore:stop(),
+        lock:stop(),
+        ?assertEqual(TimesToIncrement, Result)
+    end}.
+
+accumulated_consistency_test_() ->
+    lists:map(
+        fun accumulator/1, 
+        [lock_no_persistence, lock_persist_holder, lock_persist_queue, lock_persist_state]
+    ).
 
 %% run fun Work on NumWorkers parallel procs
 %% returns when all workers finish (barrier)
