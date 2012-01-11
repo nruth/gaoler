@@ -12,7 +12,7 @@ ct: deps
 	$(REBAR) compile ct
 
 deps: 
-	rebar get-deps
+	$(REBAR) get-deps
 	mkdir -p .eunit
 	cp src/gaoler.config.src .eunit/gaoler.config
 	cp src/gaoler.config.src ebin/gaoler.config
