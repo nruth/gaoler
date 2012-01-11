@@ -15,7 +15,7 @@ lock_granted(Queue) ->
 
 %% called when the lock is held by the server, ready for issue
 lock_available(_Queue) -> 
-    ok = atomic_persist({lock_holder, none}),
+    ok = atomic_persist({lock_holder, none}).
 
 %% called when the lock is released by a client
 %% and another client is queueing for it
