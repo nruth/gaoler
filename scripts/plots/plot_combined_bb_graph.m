@@ -1,9 +1,9 @@
-persistence_modules = {'no_persistence' 'persist_state' 'persist_holder' 'persist_queue'};
+persistence_modules = {'noop' 'no_persistence' 'persist_state' 'persist_holder' 'persist_queue'};
 
 figure;
 set(0,'DefaultAxesColorOrder',[0 0 0],...
-    'DefaultAxesLineStyleOrder','d:|>:|p:|o:'); % with lines
-%         'DefaultAxesLineStyleOrder','d|>|p|o'); % no lines
+    'DefaultAxesLineStyleOrder','d:|>:|p:|o:|.:|*:'); % with lines
+%         'DefaultAxesLineStyleOrder','d|>|p|o|.|*'); % no lines
       
 
 
