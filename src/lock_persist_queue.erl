@@ -26,5 +26,4 @@ lock_holder_changed(Queue) ->
 atomic_persist(Term) ->
     {ok, FileHandle} = file:open(lock_queue_store, [raw, write]), % overwrites, not append
     file:write(FileHandle, Term),
-    % file:datasync(FileHandle),
     file:close(FileHandle).
