@@ -7,7 +7,7 @@ set(0,'DefaultAxesColorOrder',[0 0 0],...
       
 
 
-title('Centralised Lock Throughput for Varied Persistence');
+title('Throughput of the Centralised Lock Persistence Strategies');
 xlabel('Time (s)');
 ylabel('Throughput (completions/s)');
 
