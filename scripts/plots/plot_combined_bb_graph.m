@@ -15,7 +15,8 @@ hold all;
 
 for i = 1:length(persistence_modules)
     import_bb_summary(strcat('../../../results/gaoler_centralised_', persistence_modules{i}, '_5_minute_100_workers.csv'));
-    plot(elapsed, successful);
+    throughput = successful ./ window;
+    plot(elapsed, throughput);
 end
 
 legend(strrep(strrep(persistence_modules, '_', ' '), 'lock ', ''));
