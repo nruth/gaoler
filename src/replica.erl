@@ -9,6 +9,7 @@
                   }).
 
 -define (SERVER, ?MODULE).
+-define (GC_INTERVAL, 1000).
 
 %%% Client API
 request(Operation, Client) ->
@@ -30,6 +31,7 @@ start_link(LockApplication) ->
     ReplicaState = #replica{application=LockApplication},
     Pid = spawn_link(fun() -> loop(ReplicaState) end),
     register(replica, Pid),
+    erlang:send_after(?GC_INTERVAL, replica, gc_trigger),
     {ok, Pid}.
 
 stop() ->
@@ -43,11 +45,26 @@ loop(State) ->
         {decision, Slot, Command} ->
             NewState = handle_decision(Slot, Command, State),
             loop(NewState);        
+        gc_trigger ->
+            NewState = perform_garbage_collection(State),
+            erlang:send_after(?GC_INTERVAL, replica, gc_trigger),
+            loop(NewState);
         stop ->
             ok
     end.
 
 %%% Internals
+
+perform_garbage_collection(State) ->
+    ActiveDecisions = 
+        lists:filter(fun({_, Command}) ->
+                       case not is_command_already_decided(Command, State) of
+                           true -> true;
+                           false -> false
+                       end 
+                     end, State#replica.proposals), 
+    State#replica{decisions = ActiveDecisions}.
+    
 
 %% Push the command into the replica command queue
 %% Should check that it hasn't already been delivered (duplicate msg)
