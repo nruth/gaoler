@@ -6,22 +6,25 @@
 %% called to perform any start-up procedure for the lock persistence
 %% e.g. create dets table
 init() ->
-    {ok, lock_queue_storage} = dets:open_file(lock_queue_storage, []).
+    ok.
 
 %% called when the lock is held by the server, 
 %% and is being issued to a client
 lock_granted(Queue) -> 
-    ok = dets:insert(lock_queue_storage, Queue),
-    dets:sync(lock_queue_storage).
+    atomic_persist(Queue).
 
 %% called when the lock is held by the server, ready for issue
 lock_available(Queue) -> 
-    ok = dets:insert(lock_queue_storage, Queue),
-    dets:sync(lock_queue_storage).
+    atomic_persist(Queue).
 
 %% called when the lock is released by a client
 %% and another client is queueing for it
 %% so they will be issued it immediately
 lock_holder_changed(Queue) -> 
-    ok = dets:insert(lock_queue_storage, Queue),
-    dets:sync(lock_queue_storage).
+    atomic_persist(Queue).
+
+atomic_persist(Term) ->
+    {ok, FileHandle} = file:open(lock_queue_store, [raw, write]), % overwrites, not append
+    file:write(FileHandle, Term),
+    % file:datasync(FileHandle),
+    file:close(FileHandle).
