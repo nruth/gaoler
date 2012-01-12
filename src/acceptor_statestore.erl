@@ -13,7 +13,7 @@
 
 -define (TABLE, acceptor_statestore).
 
-init() -> %TODO: make this private
+init() -> %TODO: make this private; it is public for delete in test cleanup 
     ets:new(?TABLE, [set, named_table, public]). 
 
 find(ElectionId) ->
