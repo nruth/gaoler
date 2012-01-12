@@ -8,6 +8,7 @@
 	 start_link/0, 
 	 get_acceptors/0,
          majority/0,
+         replicas/0,
 	 join/0,
 	 stop/0
 	]).
@@ -24,6 +25,7 @@
 
 -define(SERVER, ?MODULE). 
 -define(DEFAULT_MAJORITY, 3).
+-define(DEFAULT_REPLICAS, 5).
 
 %%%===================================================================
 %%% API
@@ -34,6 +36,9 @@ start_link() ->
 
 majority() ->
     gen_server:call(?SERVER, majority).
+
+replicas() ->
+    gen_server:call(?SERVER, replicas).
 
 join() ->
     gen_server:abcast(?SERVER, {join, node()}). 
@@ -58,7 +63,9 @@ init([]) ->
             {ok, ReadConfig} ->
                 ReadConfig;
             {error, _} ->
-                [{majority, ?DEFAULT_MAJORITY}, {nodes, []}]
+                [{majority, ?DEFAULT_MAJORITY}, 
+                 {replicas, ?DEFAULT_REPLICAS},
+                 {nodes, []}]
         end,
     InitialState = #state{configuration = Configuration},
 
@@ -67,6 +74,8 @@ init([]) ->
     [spawn(fun() -> net_adm:ping(Node) end) || Node <- Nodes],
     {ok, InitialState}.
 
+handle_call(replicas, _From, State) ->
+    {reply, proplists:get_value(replicas, State#state.configuration), State};
 handle_call(majority, _From, State) ->
     {reply, proplists:get_value(majority, State#state.configuration), State};
 handle_call(get_acceptors, _From, State) ->

@@ -1,1 +1,2 @@
 {majority, 3}.
+{replicas, 5}.

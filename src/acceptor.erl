@@ -91,8 +91,7 @@ handle_info(gc_trigger, State) ->
     {noreply, NewState}.
 
 can_gc_be_performed(Reqs) ->
-    % TODO: should check N replicas where we know N are running, e.g. 2 or 3, not assume each node runs one
-    NumReplicas = 5,
+    NumReplicas = gaoler:replicas(),
     case length(Reqs) of
         NumReplicas -> {ok, lists:min([N || {_, N} <- Reqs])};
         _ -> false

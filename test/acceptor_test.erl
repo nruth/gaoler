@@ -62,7 +62,7 @@ accept_request_state_changes_test_() ->
 
 should_update_accepted_when_higher_round_accept_requested() ->
     Sender = nil, 
-    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(4, prev)),
+    ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(1, 4, prev)),
     Proposal = {accept, {1,5}, v},
     acceptor:handle_call(Proposal, Sender, ?INITIAL_STATE),
     ?assertMatch({1, #election{accepted = {5, v}}}, 
