@@ -13,13 +13,13 @@
 setup() ->
     acceptor_statestore:init().
 
-teardown(Name) ->
-    ets:delete(Name).
+teardown(ETSTableRef) ->
+    ets:delete(ETSTableRef).
     
 promise_requests_test_() -> 
     {foreach, 
      fun setup/0,
-     fun teardown/1,     
+     fun teardown/1,
      [
       fun should_send_promise_when_no_higher_promises_made/0,
       fun should_send_highest_promise_when_lower_prepare_received/0,
