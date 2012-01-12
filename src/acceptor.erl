@@ -11,21 +11,18 @@
 %%%===================================================================
 -export([
 	 start_link/0, 
-	 start_link/1,
 	 stop/0, 
 	 stop/1,
 	 prepare/2, 
 	 accept/3,
-         gc_this/3
+     gc_this/3
 	]).
 
 %%--------------------------------------------------------------------
 %% @doc Starts the server.
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [?MODULE], []).
-start_link(Name) ->
-    gen_server:start_link({local, Name}, ?MODULE, [Name], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %%--------------------------------------------------------------------
 %% @doc Stops the server.
@@ -36,19 +33,19 @@ stop(Name) ->
     gen_server:cast(Name, stop).
 
 %%--------------------------------------------------------------------
-%% @doc Request that the acceptor promises not to vote on older rounds
+%% @doc Request that the acceptor promise not to vote on older rounds
 %%--------------------------------------------------------------------
 prepare(Acceptor, {Election,Round}) ->
   gen_server:call(Acceptor, {prepare, {Election, Round}}).
 
 %%--------------------------------------------------------------------
-%% @doc Request that the acceptor votes for the proposal
+%% @doc Request that the acceptor vote for the proposal
 %%--------------------------------------------------------------------
 accept(Acceptor, {Election,Round}, Value) ->
   gen_server:call(Acceptor, {accept, {Election, Round}, Value}).
 
 %%--------------------------------------------------------------------
-%% @doc Request that the acceptor votes for the proposal
+%% @doc Request that the acceptor vote for the proposal
 %%--------------------------------------------------------------------
 gc_this(Acceptor, From, Election) ->
     gen_server:cast(Acceptor, {ready_to_gc, From, Election}).
@@ -56,15 +53,19 @@ gc_this(Acceptor, From, Election) ->
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
-init([Name]) -> 
-%    StartState = persister:load_saved_state(),
-    Store = acceptor_statestore:create(Name),
-    StartState = #state{elections = Store,
-                        ready_to_gc = []},
+init([]) -> 
+    % boot the storage 
+    acceptor_statestore:init(),
+
+    % schedule garbage collection
     erlang:send_after(?GC_INTERVAL, self(), gc_trigger),
+    
+    % recover / init start state
+    % StartState = persister:load_saved_state(),
+    StartState = #state{},
     {ok, StartState}.
 
-% gen_server callback
+
 handle_call({prepare, {ElectionId, Round}}, _From, State) ->
     handle_prepare({ElectionId, Round}, State);
 handle_call({accept, {ElectionId, Round}, Value}, _From, State) ->
@@ -78,7 +79,7 @@ handle_cast({ready_to_gc, From, ElectionId}, State) ->
     {noreply, NewState};
 handle_cast(stop, State) -> {stop, normal, State}.
 
-handle_info(gc_trigger, State) -> 
+handle_info(gc_trigger, State) ->
     NewState = 
         case can_gc_be_performed(State#state.ready_to_gc) of
             {ok, Id} ->
@@ -90,9 +91,10 @@ handle_info(gc_trigger, State) ->
     {noreply, NewState}.
 
 can_gc_be_performed(Reqs) ->
-    % TODO: should check all is reqs from all RSMs
+    % TODO: should check N replicas where we know N are running, e.g. 2 or 3, not assume each node runs one
+    NumReplicas = 5,
     case length(Reqs) of
-        5 -> {ok, lists:min([N || {_, N} <- Reqs])};
+        NumReplicas -> {ok, lists:min([N || {_, N} <- Reqs])};
         _ -> false
     end.
 
@@ -100,7 +102,7 @@ can_gc_be_performed(Reqs) ->
 %%% Prepare requests
 %%%=================================================================== 
 handle_prepare({ElectionId, Round}, State) ->
-    case acceptor_statestore:find(State#state.elections, ElectionId) of
+    case acceptor_statestore:find(ElectionId) of
         {ElectionId, FoundElection} ->
             handle_prepare_for_existing_election(ElectionId, Round, FoundElection, State);
         false ->
@@ -110,14 +112,14 @@ handle_prepare({ElectionId, Round}, State) ->
 handle_prepare_for_existing_election(_ElectionId, Round, FoundElection, State) ->
     HighestPromise = max(Round, FoundElection#election.promised),
     NewElection = FoundElection#election{promised = HighestPromise},
-    update_election(State#state.elections, NewElection),
+    update_election(NewElection),
     Reply = {promised, HighestPromise, NewElection#election.accepted},
     %persister:remember_promise(ElectionId, NewElection#election.promised),
     {reply, Reply, State}.
 
 create_new_election_from_prepare_request(ElectionId, Round, State) ->
     NewElection = #election{id = ElectionId, promised = Round},
-    add_new_election(State#state.elections, NewElection),
+    add_new_election(NewElection),
     %persister:remember_promise(ElectionId, Round),
     {reply, {promised, Round, NewElection#election.accepted}, State}.
 
@@ -126,7 +128,7 @@ create_new_election_from_prepare_request(ElectionId, Round, State) ->
 %%%=================================================================== 
 handle_accept({ElectionId, Round}, Value, State) ->
     {Reply, NextState} = 
-        case acceptor_statestore:find(State#state.elections, ElectionId) of
+        case acceptor_statestore:find(ElectionId) of
             {ElectionId, _ElectionRecord}=Election ->
                 handle_accept_for_election(Round, Value, Election, State);
             false ->
@@ -139,7 +141,7 @@ handle_accept_for_election(Round, Value, {ElectionId, Election}, State)
     NewElection = Election#election{id = ElectionId, 
                                     promised = Round, 
                                     accepted = {Round, Value}},
-    update_election(State#state.elections, NewElection),
+    update_election(NewElection),
     %persister:remember_vote(ElectionId, Round, Value),
     {{accepted, Round, Value}, State};
 handle_accept_for_election(Round, _Value, _Election, State) ->
@@ -149,7 +151,7 @@ create_new_election_from_accept_request(ElectionId, Round, Value, State) ->
     NewElection = #election{id = ElectionId, 
                             promised = Round,
                             accepted = {Round, Value}},
-    add_new_election(State#state.elections, NewElection),
+    add_new_election(NewElection),
     %persister:remember_vote(ElectionId, Round, Value),
     {{accepted, Round, Value}, State}.
 
@@ -157,14 +159,14 @@ create_new_election_from_accept_request(ElectionId, Round, Value, State) ->
 %%%===================================================================
 %%% Internal functions
 %%%=================================================================== 
-add_new_election(Elections, NewElection) ->
-    acceptor_statestore:add(Elections, NewElection).
+add_new_election(NewElection) ->
+    acceptor_statestore:add(NewElection).
 
-update_election(Elections, NewElection) ->
-    acceptor_statestore:replace(Elections, NewElection).
+update_election(NewElection) ->
+    acceptor_statestore:replace(NewElection).
 
 garbage_collect_elections_older_than(OldestNeededElectionId, State) ->
-    acceptor_statestore:gc(State#state.elections, OldestNeededElectionId),
+    acceptor_statestore:gc(OldestNeededElectionId),
     State#state{oldest_remembered_state = OldestNeededElectionId}.
 
     %% NeededElectionPredicate = fun({ElectionId, _}) -> 

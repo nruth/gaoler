@@ -38,33 +38,34 @@ log_vote_to_file(Election, Round, Value) ->
     append_to_file(Election, LogRecord).
 
 load_saved_state_from_file() ->
-    case file:list_dir(?LOGDIRECTORY) of
-        {ok, Files} ->
-            Elections = collect_elections(Files),
-            #state{elections=Elections};
-        _NoHistoryAvailable ->
-            #state{}
-    end.
+    error("unimplemented").
+    % case file:list_dir(?LOGDIRECTORY) of
+    %     {ok, Files} ->
+    %         Elections = collect_elections(Files),
+    %         #state{elections=Elections}; -- this has been removed
+    %     _NoHistoryAvailable ->
+    %         #state{}
+    % end.
 
 %%% Helper functions
-collect_elections(Files) ->
-    Self = self(),
-    Pids = lists:map(fun(File) ->
-                             spawn(fun() ->
-                                           read_log_file(Self, File)
-                                   end) 
-                     end, Files),
-    gather_elections(Pids).
-
-gather_elections([Pid|Tail]) ->
-    receive 
-        {Pid, {error, _}} -> % filter corrupt files, is this intended?
-            gather_elections(Tail);
-        {Pid, ReturnValue} ->
-            [ReturnValue|gather_elections(Tail)]
-    end;
-gather_elections([]) ->
-    [].
+% collect_elections(Files) ->
+%     Self = self(),
+%     Pids = lists:map(fun(File) ->
+%                              spawn(fun() ->
+%                                            read_log_file(Self, File)
+%                                    end) 
+%                      end, Files),
+%     gather_elections(Pids).
+% 
+% gather_elections([Pid|Tail]) ->
+%     receive 
+%         {Pid, {error, _}} -> % filter corrupt files, is this intended?
+%             gather_elections(Tail);
+%         {Pid, ReturnValue} ->
+%             [ReturnValue|gather_elections(Tail)]
+%     end;
+% gather_elections([]) ->
+%     [].
 
 % returns an acceptor election record for specified logfile
 read_log_file(Parent, File) ->
