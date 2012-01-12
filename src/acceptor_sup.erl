@@ -1,4 +1,4 @@
--module(house_sup).
+-module(acceptor_sup).
 -behaviour(supervisor).
 
 -export([start_link/0,
@@ -15,12 +15,9 @@
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
-% Start a house with acceptor and learner
+% Start an acceptor
 init([]) ->
     Acceptor = {acceptor, {acceptor, start_link, []}, 
     		permanent, 2000, worker, [acceptor]},
 
-    Learner = {learner, {learner, start_link, []}, 
-    		permanent, 2000, worker, [learner]},
-
-    {ok, {?SUPFLAGS, [Acceptor, Learner]}}.
+    {ok, {?SUPFLAGS, [Acceptor]}}.

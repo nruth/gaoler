@@ -8,7 +8,7 @@
 {application, gaoler, [
     {description, "gaoler distributed locking service"},
     {vsn, "1.0.0"},
-    {registered, [acceptor, learner, replica, ticket_machine]},
+    {registered, [acceptor, replica, ticket_machine]},
     {applications, [kernel, stdlib]},
     {mod, { gaoler_app, []}}
 ]}.

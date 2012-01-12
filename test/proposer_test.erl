@@ -251,13 +251,12 @@ should_broadcast_new_prepare_request_on_reject_quorum() ->
 
 %% Meck stub modules, used to enable decoupled unit tests
 setup() ->
-    Mods = [acceptors, gaoler, learners],
+    Mods = [acceptors, gaoler],
     meck:new(Mods),
     meck:expect(gaoler, deliver, 1, ok),
     meck:expect(gaoler, majority, 0, 3),
     meck:expect(acceptors, send_accept_requests, 3, ok),
     meck:expect(acceptors, send_promise_requests, 2, ok),
-    meck:expect(learners, broadcast_result, 1, ok),    
     Mods.
 
 teardown(Mods) ->

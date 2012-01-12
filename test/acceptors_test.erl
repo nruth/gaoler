@@ -66,7 +66,7 @@ start_acceptors(N) ->
     Acceptors.
 
 setup() ->
-    Mods = [proposer, gaoler, learners, acceptor],
+    Mods = [proposer, gaoler, acceptor],
     meck:new(Mods),
     meck:expect(proposer, deliver_promise, 2, ok),
     meck:expect(proposer, deliver_accept, 2, ok),

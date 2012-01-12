@@ -20,21 +20,20 @@ start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 % Start the frontend service gaoler and the internal paxos components 
-% (acceptor, learner) in a bundle called a house. 
 % 
 %              gaoler_sup
 %           /      \       \
-%     house_sup    gaoler  lock
-%     /       \
-% acceptor   cache
+%     acceptor_sup gaoler  lock
+%     /       
+% acceptor 
 %
 init([]) ->
     GaolerService = {gaoler, {gaoler, start_link, []},
 		     permanent, 2000, worker, [gaoler]},
 
     
-    HouseSup = {house_sup, {house_sup, start_link, []},
-                permanent, 2000, supervisor, [house_sup]},
+    AcceptorSup = {acceptor_sup, {acceptor_sup, start_link, []},
+                permanent, 2000, supervisor, [acceptor_sup]},
     
     % Lock Service
     LockService = {lock, {lock, start_link, [lock_no_persistence, simple_comms]},
@@ -44,4 +43,4 @@ init([]) ->
     RSM = {replica, {replica, start_link, [lock]},
            permanent, 2000, worker, [replica]},
     
-    {ok, {?SUPFLAGS, [GaolerService, HouseSup, LockService, RSM]}}.
+    {ok, {?SUPFLAGS, [GaolerService, AcceptorSup, LockService, RSM]}}.

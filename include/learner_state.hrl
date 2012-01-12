@@ -1,3 +1,0 @@
--record(learner, {
-    learned = []
-}).
