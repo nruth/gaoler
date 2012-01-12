@@ -31,10 +31,17 @@ add(Election) ->
     ets:insert(?TABLE, {Election#election.id, Election}).
 
 gc(OldestNeededId) ->
+    %gc out-of-band: 
+    % nobody will use these values anymore
+    % and no need to block
+    spawn(fun() ->
+        aux_gc(OldestNeededId)
+    end).
+
+aux_gc(OldestNeededId) ->
     DeleteOlderThanIdSpecification = ets:fun2ms(
         fun({Id, _Val}) -> % return true to delete
             Id < OldestNeededId 
         end
     ),
     ets:select_delete(?TABLE, DeleteOlderThanIdSpecification).
-    

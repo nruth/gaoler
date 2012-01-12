@@ -133,8 +133,8 @@ should_remove_older_elements_from_state() ->
     ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(1, 1, a)),
     ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(2, 1, b)),
     ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(3, 1, c)),
-    {noreply, _NewState} = acceptor:handle_cast({gc_older_than, 4}, 
-                                               ?INITIAL_STATE),
+    {noreply, _NewState} = acceptor:handle_cast({gc_older_than, 4}, ?INITIAL_STATE),
+    timer:sleep(20),
     ?assertEqual(false, acceptor_statestore:find(1)),
     ?assertEqual(false, acceptor_statestore:find(2)),
     ?assertEqual(false, acceptor_statestore:find(3)).
@@ -143,8 +143,8 @@ should_retain_newer_elements_in_state() ->
     ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(1, 1, a)),
     ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(2, 1, b)),
     ?ADD_ONE_ELECTION(?PROMISED_AND_ACCEPTED(3, 1, c)),
-    {noreply, _NewState} = acceptor:handle_cast({gc_older_than, 2}, 
-                                               ?INITIAL_STATE),
+    {noreply, _NewState} = acceptor:handle_cast({gc_older_than, 2},  ?INITIAL_STATE),
+    timer:sleep(20),
     ?assertEqual(false, acceptor_statestore:find(1)).
 
 should_add_gc_request_to_state_when_issued_test() ->
