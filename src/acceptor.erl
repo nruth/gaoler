@@ -58,7 +58,7 @@ gc_this(Acceptor, From, Election) ->
 %%%===================================================================
 init([Name]) -> 
 %    StartState = persister:load_saved_state(),
-    Store = statestore:create(Name),
+    Store = acceptor_statestore:create(Name),
     StartState = #state{elections = Store,
                         ready_to_gc = []},
     erlang:send_after(?GC_INTERVAL, self(), gc_trigger),
@@ -100,7 +100,7 @@ can_gc_be_performed(Reqs) ->
 %%% Prepare requests
 %%%=================================================================== 
 handle_prepare({ElectionId, Round}, State) ->
-    case statestore:find(State#state.elections, ElectionId) of
+    case acceptor_statestore:find(State#state.elections, ElectionId) of
         {ElectionId, FoundElection} ->
             handle_prepare_for_existing_election(ElectionId, Round, FoundElection, State);
         false ->
@@ -126,7 +126,7 @@ create_new_election_from_prepare_request(ElectionId, Round, State) ->
 %%%=================================================================== 
 handle_accept({ElectionId, Round}, Value, State) ->
     {Reply, NextState} = 
-        case statestore:find(State#state.elections, ElectionId) of
+        case acceptor_statestore:find(State#state.elections, ElectionId) of
             {ElectionId, _ElectionRecord}=Election ->
                 handle_accept_for_election(Round, Value, Election, State);
             false ->
@@ -158,13 +158,13 @@ create_new_election_from_accept_request(ElectionId, Round, Value, State) ->
 %%% Internal functions
 %%%=================================================================== 
 add_new_election(Elections, NewElection) ->
-    statestore:add(Elections, NewElection).
+    acceptor_statestore:add(Elections, NewElection).
 
 update_election(Elections, NewElection) ->
-    statestore:replace(Elections, NewElection).
+    acceptor_statestore:replace(Elections, NewElection).
 
 garbage_collect_elections_older_than(OldestNeededElectionId, State) ->
-    statestore:gc(State#state.elections, OldestNeededElectionId),
+    acceptor_statestore:gc(State#state.elections, OldestNeededElectionId),
     State#state{oldest_remembered_state = OldestNeededElectionId}.
 
     %% NeededElectionPredicate = fun({ElectionId, _}) -> 

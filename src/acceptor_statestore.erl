@@ -1,4 +1,4 @@
--module(statestore).
+-module(acceptor_statestore).
 
 -export([
          create/1,
