@@ -10,8 +10,5 @@
     {vsn, "1.0.0"},
     {registered, [acceptor, learner, replica, ticket_machine]},
     {applications, [kernel, stdlib]},
-    {mod, { gaoler_app, []}},
-    {env,[{nodes,['test1@localhost','test2@localhost',
-                'test3@localhost','test4@localhost',
-                'test5@localhost']}]}
+    {mod, { gaoler_app, []}}
 ]}.
