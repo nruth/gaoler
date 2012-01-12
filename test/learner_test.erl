@@ -11,7 +11,7 @@
 behaviour_on_receving_decision_notification_test_() -> 
     {foreach, fun setup/0, fun teardown/1, [
     fun should_learn_the_value_sent_by_another_learner/0,
-    fun should_rebroadcast_learned_value_exactly_once/0
+    fun should_not_rebroadcast_learned_value/0
 ]}.
 
     should_learn_the_value_sent_by_another_learner() ->
@@ -19,7 +19,7 @@ behaviour_on_receving_decision_notification_test_() ->
         ?assertEqual({noreply, ?DECIDED(Value)}, learner:handle_cast({result, Value}, ?NOSTATE)),
         ?assertEqual({noreply, ?DECIDED(Value)}, learner:handle_cast({result, Value}, ?DECIDED(Value))).
 
-    should_rebroadcast_learned_value_exactly_once() ->
+    should_not_rebroadcast_learned_value() ->
         Value = foo,
         {noreply, NewState} = learner:handle_cast({result, Value}, ?NOSTATE),
         ?assertEqual(1, meck:num_calls(learners, broadcast_result, [Value])),

@@ -1,3 +1,5 @@
+%TODO: does this module serve any purpose other than extra complexity in a total-ordering system?
+% it's not supporting get requests after-the-fact so caching is moot
 -module(learner).
 -behaviour(gen_server).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -34,7 +36,7 @@ handle_cast(stop, State) ->
 %%%===================================================================
 
 learn_value_and_update_state(Value, State) ->
-    learners:broadcast_result(Value),
+    learners:broadcast_result(Value), %- this is going to cause a rebroadcast storm / not halt, because the value changes
     State#learner{learned = #decided{value = Value}}.
 
 %% responds to value queries
