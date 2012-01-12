@@ -9,7 +9,7 @@
                   }).
 
 -define (SERVER, ?MODULE).
--define (GC_INTERVAL, 1000).
+-define (GC_INTERVAL, 60000).
 
 %%% Client API
 request(Operation, Client) ->
@@ -31,7 +31,7 @@ start_link(LockApplication) ->
     ReplicaState = #replica{application=LockApplication},
     Pid = spawn_link(fun() -> loop(ReplicaState) end),
     register(replica, Pid),
-    erlang:send_after(?GC_INTERVAL, replica, gc_trigger),
+    % erlang:send_after(?GC_INTERVAL, replica, gc_trigger),
     {ok, Pid}.
 
 stop() ->
