@@ -2,16 +2,16 @@
 -include_lib("eunit/include/eunit.hrl").
 
 setup() ->
-    Mods = [centralised_lock, proposer, acceptor],
+    Mods = [lock, proposer, acceptor],
     meck:new(Mods),
     meck:expect(acceptor, gc_this, 3, ok),
-    meck:expect(centralised_lock, acquire, 1, ok),
-    meck:expect(centralised_lock, release, 1, ok),
+    meck:expect(lock, acquire, 1, ok),
+    meck:expect(lock, release, 1, ok),
     meck:expect(proposer, propose, 
                 fun({Slot, Proposal}) ->
                         self() ! {decision, Slot, Proposal} 
                 end),
-    replica:start_link(centralised_lock),
+    replica:start_link(lock),
     Mods.
 
 teardown(Mods) ->

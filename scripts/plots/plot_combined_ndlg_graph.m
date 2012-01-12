@@ -1,4 +1,4 @@
-persistence_modules = {'lock_no_persistence' 'lock_persist_state' 'lock_persist_holder' 'lock_persist_queue'};
+persistence_modules = {'lock_no_persistence' 'lock_persist_holder' 'lock_persist_queue'};
 duration = 5000;
 workers = 50;
 interval = 5e-1
