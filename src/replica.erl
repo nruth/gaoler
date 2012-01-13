@@ -9,7 +9,7 @@
                   }).
 
 -define (SERVER, ?MODULE).
--define (GC_INTERVAL, 20000).
+-define (GC_INTERVAL, 60000).
 
 %%% Client API
 request(Operation, Client) ->
