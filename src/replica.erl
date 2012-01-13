@@ -161,7 +161,7 @@ gc_decisions(State) ->
             Id < CleanUpto
         end
     ),
-    ets:select_delete(replica_decisions, DeleteOlderThanIdSpec),
+    spawn(ets, select_delete, [replica_decisions, DeleteOlderThanIdSpec]),
     State.
 
 add_decision_to_state({Slot, Command}, State) ->
