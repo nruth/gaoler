@@ -92,7 +92,7 @@ is_command_already_decided(Command, _State) ->
 
 handle_decision(Slot, Command, State) ->
     NewStateA = add_decision_to_state({Slot, Command}, State),
-    NewStateB = remove_proposal_for_decided_slot(Slot, Command, NewStateA),
+    remove_proposal_for_decided_slot(Slot, DecidedCommand, NewStateB)
     consume_decisions(NewStateB).
 
 %% Performs as many decided (queued) commands as possible
