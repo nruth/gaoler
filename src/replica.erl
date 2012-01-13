@@ -92,7 +92,8 @@ is_command_already_decided(Command, _State) ->
 
 handle_decision(Slot, Command, State) ->
     NewStateA = add_decision_to_state({Slot, Command}, State),
-    consume_decisions(NewStateA).
+    remove_proposal_for_decided_slot(Slot, DecidedCommand, NewStateB)
+    consume_decisions(NewStateB).
 
 %% Performs as many decided (queued) commands as possible
 %%   * Delivers contiguous commands from the holdback queue, 
@@ -105,8 +106,7 @@ consume_decisions(State) ->
         [] ->
             State;
         [{Slot, DecidedCommand}] ->
-            StateAfterProposalGC = handle_received_decision(Slot, DecidedCommand, State),
-            StateAfterPerform = perform(DecidedCommand, StateAfterProposalGC),
+            StateAfterPerform = perform(DecidedCommand, State),
             % multicast slot to acceptors for gc every nth decision
             check_gc_acceptor(Slot),
             consume_decisions(StateAfterPerform)
@@ -121,7 +121,7 @@ check_gc_acceptor(_) ->
 %% Garbage-collects the proposal for the given slot
 %% When the command does not match the decided command
 %% it will be re-proposed for another slot
-handle_received_decision(Slot, DecidedCommand, State) ->
+remove_proposal_for_decided_slot(Slot, DecidedCommand, State) ->
     % do we have a proposal for the same slot?
     case lists:keyfind(Slot, 1, State#replica.proposals) of 
         false -> % no match, noop
