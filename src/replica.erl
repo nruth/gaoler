@@ -56,7 +56,7 @@ loop(State) ->
 %%% Internals
 
 gc_decisions(State) ->
-    CleanUpto = State#replica.slot_num - 100,
+    CleanUpto = State#replica.slot_num - 200,
     Pred = fun({Slot, _Op}) ->
         Slot >= CleanUpto
     end,
@@ -112,12 +112,12 @@ consume_decisions(State) ->
         {Slot, DecidedCommand} ->
             StateAfterProposalGC = handle_received_decision(Slot, DecidedCommand, State),
             StateAfterPerform = perform(DecidedCommand, StateAfterProposalGC),
-            % multicast slot to acceptors for gc every 50th decision
+            % multicast slot to acceptors for gc every nth decision
             check_gc_acceptor(Slot),
             consume_decisions(StateAfterPerform)
     end.
 
-check_gc_acceptor(Slot) when Slot rem 50 == 0 ->
+check_gc_acceptor(Slot) when Slot rem 100 == 0 ->
     [acceptor:gc_this(Acceptor, node(), Slot) || 
         Acceptor <- gaoler:get_acceptors()];
 check_gc_acceptor(_) ->
