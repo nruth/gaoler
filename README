@@ -8,3 +8,5 @@ Eunit tests:
 Common tests:
       Add code:add_pathz("/path/to/gaoler/ebin/"). to your ~/.erlang file
       rebar compile ct
+
+n.b. This is not production code. Written for a measurement paper, it is missing various important components for situations such as state recovery in case of failure and restart.
