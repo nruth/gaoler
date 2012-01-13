@@ -117,7 +117,7 @@ consume_decisions(State) ->
             consume_decisions(StateAfterPerform)
     end.
 
-check_gc_acceptor(Slot) when Slot rem 500 == 0 ->
+check_gc_acceptor(Slot) when Slot rem 300 == 0 ->
     [acceptor:gc_this(Acceptor, node(), Slot) || 
         Acceptor <- gaoler:get_acceptors()];
 check_gc_acceptor(_) ->
