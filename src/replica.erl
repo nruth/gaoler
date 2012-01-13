@@ -9,7 +9,7 @@
                   }).
 
 -define (SERVER, ?MODULE).
--define (GC_INTERVAL, 10000).
+-define (GC_INTERVAL, 20000).
 
 %%% Client API
 request(Operation, Client) ->
@@ -46,7 +46,7 @@ loop(State) ->
             NewState = handle_decision(Slot, Command, State),
             loop(NewState);        
         gc_trigger ->
-            NewState = perform_garbage_collection(State),
+            NewState = gc_decisions(State),
             erlang:send_after(?GC_INTERVAL, replica, gc_trigger),
             loop(NewState);
         stop ->
@@ -55,16 +55,14 @@ loop(State) ->
 
 %%% Internals
 
-perform_garbage_collection(State) ->
-    ActiveDecisions = 
-        lists:filter(fun({_, Command}) ->
-                       case not is_command_already_decided(Command, State) of
-                           true -> true;
-                           false -> false
-                       end 
-                     end, State#replica.proposals), 
-    State#replica{decisions = ActiveDecisions}.
-    
+gc_decisions(State) ->
+    CleanUpto = State#replica.slot_num - 100,
+    Pred = fun({Slot, _Op}) ->
+        Slot >= CleanUpto
+    end,
+    CleanedDecisions = lists:filter(Pred, State#replica.decisions),
+    State#replica{decisions = CleanedDecisions}.
+
 
 %% Push the command into the replica command queue
 %% Should check that it hasn't already been delivered (duplicate msg)
@@ -112,7 +110,7 @@ consume_decisions(State) ->
         false ->
             State;
         {Slot, DecidedCommand} ->
-            StateAfterProposalGC = gc_proposals(Slot, DecidedCommand, State),
+            StateAfterProposalGC = handle_received_decision(Slot, DecidedCommand, State),
             StateAfterPerform = perform(DecidedCommand, StateAfterProposalGC),
             % multicast slot to acceptors for gc every 50th decision
             check_gc_acceptor(Slot),
@@ -128,14 +126,15 @@ check_gc_acceptor(_) ->
 %% Garbage-collects the proposal for the given slot
 %% When the command does not match the decided command
 %% it will be re-proposed for another slot
-gc_proposals(Slot, DecidedCommand, State) ->
+handle_received_decision(Slot, DecidedCommand, State) ->
+    % do we have a proposal for the same slot?
     case lists:keyfind(Slot, 1, State#replica.proposals) of 
-        false ->
+        false -> % no match, noop
             State;
-        {Slot, DecidedCommand} ->
-            % leave 
-            State;
-        {Slot, ConflictingCommand} ->
+        {Slot, DecidedCommand} -> % we proposed this decision, gc it
+            remove_proposal_from_state(Slot, State);
+        {Slot, ConflictingCommand} -> 
+            % we proposed a different command in this slot, repropose it in another slot
             CleanedState = remove_proposal_from_state(Slot, State),
             propose(ConflictingCommand, CleanedState)
     end.
